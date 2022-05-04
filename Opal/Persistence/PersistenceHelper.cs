@@ -8,7 +8,7 @@ internal static class PersistenceHelper
         var directory = Path.Combine(Environment.CurrentDirectory, Constants.DirectoryName);
 #else
         var directory = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            DirectoryName);
+            Constants.DirectoryName);
 #endif
 
         if (!string.IsNullOrEmpty(subDirectory))
