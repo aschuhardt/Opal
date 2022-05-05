@@ -28,6 +28,10 @@ public class GemtextDocumentParser : IGemtextDocumentParser
             return new EmptyLine();
 
         var firstChar = line[0];
+
+        if (formatted && firstChar != '`')
+            return new FormattedLine(line);
+
         switch (firstChar)
         {
             case '=' when line[1] == '>':
