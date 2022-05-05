@@ -74,14 +74,25 @@ public class GemtextDocumentParser : IGemtextDocumentParser
 
     private bool TryBuildNormalizedUri(string uri, out Uri parsed)
     {
-        if (uri.StartsWith('/'))
+        if (!uri.StartsWith('/')) 
+            return Uri.TryCreate(uri, UriKind.Absolute, out parsed);
+
+        // build an absolute URI from a relative one
+        var path = uri;
+        var query = string.Empty;
+        if (uri.Contains('?'))
         {
-            parsed = new UriBuilder
-                { Host = _uri.Host, Scheme = _uri.Scheme, Port = _uri.IsDefaultPort ? -1 : _uri.Port, Path = uri }.Uri;
-            return true;
+            path = uri[..uri.IndexOf('?')];
+            query = uri[(uri.IndexOf('?') + 1)..].TrimEnd();
         }
 
-        return Uri.TryCreate(uri, UriKind.Absolute, out parsed);
+        parsed = new UriBuilder
+        {
+            Host = _uri.Host, Scheme = _uri.Scheme, Port = _uri.IsDefaultPort ? -1 : _uri.Port, Path = path,
+            Query = query
+        }.Uri;
+
+        return true;
     }
 
     private ILine ParseLinkLinePrefix(string line)
