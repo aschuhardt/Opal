@@ -5,7 +5,9 @@ VisualStudioVersion = 17.1.32228.430
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opal", "Opal\Opal.csproj", "{3E1503A8-81A1-4700-960D-AB65C99A2B1A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Opal.Console", "Opal.Console\Opal.Console.csproj", "{3C0838A2-7978-41FC-A8EE-0CC30EEDC7F1}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opal.Console", "Opal.Console\Opal.Console.csproj", "{3C0838A2-7978-41FC-A8EE-0CC30EEDC7F1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Opal.Test", "Opal.Test\Opal.Test.csproj", "{E22F8DCE-BDB3-41A4-80E6-EC5F2AAA60B4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{3C0838A2-7978-41FC-A8EE-0CC30EEDC7F1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3C0838A2-7978-41FC-A8EE-0CC30EEDC7F1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3C0838A2-7978-41FC-A8EE-0CC30EEDC7F1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E22F8DCE-BDB3-41A4-80E6-EC5F2AAA60B4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E22F8DCE-BDB3-41A4-80E6-EC5F2AAA60B4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E22F8DCE-BDB3-41A4-80E6-EC5F2AAA60B4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E22F8DCE-BDB3-41A4-80E6-EC5F2AAA60B4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
