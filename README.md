@@ -51,8 +51,7 @@ client.CertificateRequired += (_, e) =>
 client.InputRequired += 
   (_, e) => 
   {
-    Console.WriteLine(e.Prompt);
-    Console.Write("What say you? ");
+    Console.Write($"{e.Prompt}: ");
     e.Value = Console.ReadLine();
   };
 ```
