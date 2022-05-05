@@ -72,38 +72,31 @@ public class OpalClient : IOpalClient
             return new InvalidResponse(uri);
 
         var status = (StatusCode)header.StatusCode;
-        switch (status)
+        return status switch
         {
-            case StatusCode.Input:
-                return new InputRequiredResponse(uri, false, header.Meta);
-            case StatusCode.InputSensitive:
-                return new InputRequiredResponse(uri, true, header.Meta);
-            case StatusCode.Success:
-                return IsGemtextMimetype(header.Meta)
-                    ? new GemtextResponse(uri, contents, header.Languages)
-                    : new SuccessfulResponse(uri, contents, header.Meta);
-            case StatusCode.TemporaryRedirect:
-                return new RedirectResponse(uri, false, header.Meta);
-            case StatusCode.PermanentRedirect:
-                return new RedirectResponse(uri, true, header.Meta);
-            case StatusCode.ClientCertificateRequired:
-            case StatusCode.TemporaryFailure:
-            case StatusCode.ServerUnavailable:
-            case StatusCode.CgiError:
-            case StatusCode.ProxyError:
-            case StatusCode.SlowDown:
-            case StatusCode.PermanentFailure:
-            case StatusCode.NotFound:
-            case StatusCode.Gone:
-            case StatusCode.ProxyRequestRefused:
-            case StatusCode.BadRequest:
-            case StatusCode.CertificateNotAuthorized:
-            case StatusCode.CertificateNotValid:
-                return new ErrorResponse(uri, status, header.Meta);
-            case StatusCode.Unknown:
-            default:
-                return new InvalidResponse(uri);
-        }
+            StatusCode.Input => new InputRequiredResponse(uri, false, header.Meta),
+            StatusCode.InputSensitive => new InputRequiredResponse(uri, true, header.Meta),
+            StatusCode.Success => IsGemtextMimetype(header.Meta)
+                ? new GemtextResponse(uri, contents, header.Languages)
+                : new SuccessfulResponse(uri, contents, header.Meta),
+            StatusCode.TemporaryRedirect => new RedirectResponse(uri, false, header.Meta),
+            StatusCode.PermanentRedirect => new RedirectResponse(uri, true, header.Meta),
+            StatusCode.ClientCertificateRequired => new ErrorResponse(uri, status, header.Meta),
+            StatusCode.TemporaryFailure => new ErrorResponse(uri, status, header.Meta),
+            StatusCode.ServerUnavailable => new ErrorResponse(uri, status, header.Meta),
+            StatusCode.CgiError => new ErrorResponse(uri, status, header.Meta),
+            StatusCode.ProxyError => new ErrorResponse(uri, status, header.Meta),
+            StatusCode.SlowDown => new ErrorResponse(uri, status, header.Meta),
+            StatusCode.PermanentFailure => new ErrorResponse(uri, status, header.Meta),
+            StatusCode.NotFound => new ErrorResponse(uri, status, header.Meta),
+            StatusCode.Gone => new ErrorResponse(uri, status, header.Meta),
+            StatusCode.ProxyRequestRefused => new ErrorResponse(uri, status, header.Meta),
+            StatusCode.BadRequest => new ErrorResponse(uri, status, header.Meta),
+            StatusCode.CertificateNotAuthorized => new ErrorResponse(uri, status, header.Meta),
+            StatusCode.CertificateNotValid => new ErrorResponse(uri, status, header.Meta),
+            StatusCode.Unknown => new InvalidResponse(uri),
+            _ => new InvalidResponse(uri)
+        };
     }
 
     private IGeminiResponse SendUriRequest(Uri uri, bool allowRepeat = true, int depth = 1)
@@ -237,11 +230,6 @@ public class OpalClient : IOpalClient
         return response;
     }
 
-    private Task<IGeminiResponse> SendUriRequestAsync(Uri uri, CancellationToken cancellationToken)
-    {
-        throw new NotImplementedException();
-    }
-
     private SslStream BuildSslStream(Uri uri)
     {
         var tcpClient = new TcpClient(uri.Host, uri.IsDefaultPort ? DefaultPort : uri.Port);
@@ -255,32 +243,23 @@ public class OpalClient : IOpalClient
         if (_certificateDatabase.IsCertificateValid(uri.Host, certificate, out var result))
             return true;
 
-        switch (result)
+        if (result == InvalidCertificateReason.TrustedMismatch)
         {
-            case InvalidCertificateReason.TrustedMismatch:
-            {
-                var args = new RemoteCertificateUnrecognizedEventArgs(uri.Host,
-                    certificate.GetCertHashString(HashAlgorithmName.SHA256));
-                RemoteCertificateUnrecognized?.Invoke(this, args);
+            var args = new RemoteCertificateUnrecognizedEventArgs(uri.Host,
+                certificate.GetCertHashString(HashAlgorithmName.SHA256));
+            RemoteCertificateUnrecognized?.Invoke(this, args);
 
-                if (!args.AcceptAndTrust)
-                    return false;
-
-                // user opted to accept this certificate in place of the previously-recognized one,
-                // so update the cache and re-validate
-                _certificateDatabase.RemoveTrusted(uri.Host);
-                return ValidateCertificate(uri, certificate);
-            }
-            case InvalidCertificateReason.NameMismatch:
-            case InvalidCertificateReason.Expired:
-            case InvalidCertificateReason.NotYet:
-            case InvalidCertificateReason.Other:
-            case InvalidCertificateReason.MissingInformation:
-                RemoteCertificateInvalid?.Invoke(this, new RemoteCertificateInvalidEventArgs(uri.Host, result));
+            if (!args.AcceptAndTrust)
                 return false;
-            default:
-                throw new ArgumentOutOfRangeException();
+
+            // user opted to accept this certificate in place of the previously-recognized one,
+            // so update the cache and re-validate
+            _certificateDatabase.RemoveTrusted(uri.Host);
+            return ValidateCertificate(uri, certificate);
         }
+
+        RemoteCertificateInvalid?.Invoke(this, new RemoteCertificateInvalidEventArgs(uri.Host, result));
+        return false;
     }
 
     /// <summary>

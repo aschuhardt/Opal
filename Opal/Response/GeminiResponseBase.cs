@@ -13,6 +13,6 @@ public abstract class GeminiResponseBase : IGeminiResponse
 
     public override string ToString()
     {
-        return $"{(int)Status} {Status.ToString()}";
+        return $"{(int)Status} {Status}";
     }
 }
