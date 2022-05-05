@@ -1,4 +1,4 @@
-﻿namespace Opal.Document;
+﻿namespace Opal.Document.Line;
 
 public class FormattedEndLine : ILine
 {

@@ -1,4 +1,4 @@
-﻿namespace Opal.Document;
+﻿namespace Opal.Document.Line;
 
 public abstract class TextualLineBase : ILine
 {
