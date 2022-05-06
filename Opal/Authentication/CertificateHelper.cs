@@ -1,16 +1,31 @@
 ﻿using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 
 namespace Opal.Authentication;
 
 public static class CertificateHelper
 {
-    public static X509Certificate2 GenerateNew(string subject, TimeSpan lifespan, int keySize = 2048)
+    /// <summary>
+    ///     Generates and returns a new self-signed request with the provided attributes
+    /// </summary>
+    /// <param name="lifespan">How long the certificate should be valid for</param>
+    /// <param name="name">A name to associate with the certificate (CN)</param>
+    /// <param name="emailAddress">An optional email address to associate with the certificate (E)</param>
+    /// <param name="keySize">The size of the certificate's RSA signing key in bits</param>
+    /// <returns>A new self-signed certificate</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <see cref="name" /> is null or whitespace</exception>
+    public static X509Certificate2 GenerateNew(TimeSpan lifespan, string name, string emailAddress = null,
+        int keySize = 2048)
     {
-        // var certRequest = new CertificateRequest(new X500DistinguishedName($"CN={subject}"),
-        //    ECDsa.Create(ECCurve.NamedCurves.nistP256), HashAlgorithmName.SHA256);
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentNullException(nameof(name), "A name is required for generating certificates");
 
-        var certRequest = new CertificateRequest(new X500DistinguishedName($"CN={subject}"),
+        var subject = new StringBuilder($"CN={name}");
+        if (!string.IsNullOrWhiteSpace(emailAddress))
+            subject.Append($", E={emailAddress}");
+
+        var certRequest = new CertificateRequest(new X500DistinguishedName(subject.ToString()),
             RSA.Create(keySize), HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         certRequest.CertificateExtensions.Add(
             new X509KeyUsageExtension(X509KeyUsageFlags.NonRepudiation | X509KeyUsageFlags.DigitalSignature, true));

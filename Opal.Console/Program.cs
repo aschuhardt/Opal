@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics;
-using System.Text;
 using Opal;
 using Opal.Authentication;
 using Opal.Event;
@@ -14,8 +13,8 @@ client.CertificateRequired += GenerateCertificate;
 
 void GenerateCertificate(object? sender, CertificateRequiredEventArgs e)
 {
-    var subject = GetInput("Name to associate with this certificate");
-    e.Certificate = CertificateHelper.GenerateNew(subject, TimeSpan.FromDays(365));
+    var name = GetInput("Name to associate with this certificate");
+    e.Certificate = CertificateHelper.GenerateNew(TimeSpan.FromDays(365), name);
 }
 
 void ConfirmUntrustedCertificate(object? sender, RemoteCertificateUnrecognizedEventArgs e)

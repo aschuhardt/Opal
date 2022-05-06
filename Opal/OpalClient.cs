@@ -3,7 +3,8 @@ using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using Opal.Authentication;
+using Opal.Authentication.Certificate;
+using Opal.Authentication.Database;
 using Opal.Event;
 using Opal.Header;
 using Opal.Response;
@@ -51,6 +52,12 @@ public class OpalClient : IOpalClient
 
     public event EventHandler<RemoteCertificateInvalidEventArgs> RemoteCertificateInvalid;
     public event EventHandler<RemoteCertificateUnrecognizedEventArgs> RemoteCertificateUnrecognized;
+    public IEnumerable<IClientCertificate> Certificates => _authenticationDatabase.Certificates;
+    public void RemoveCertificate(IClientCertificate certificate)
+    {
+        _authenticationDatabase.Remove(certificate);
+    }
+
     public event EventHandler<InputRequiredEventArgs> InputRequired;
     public event EventHandler<CertificateRequiredEventArgs> CertificateRequired;
     public event EventHandler<ConfirmRedirectEventArgs> ConfirmRedirect;
@@ -110,7 +117,7 @@ public class OpalClient : IOpalClient
                 // authenticate
                 stream.AuthenticateAsClient(uri.Host,
                     _authenticationDatabase.TryGetCertificate(uri.Host, out var cert) && cert != null
-                        ? new X509Certificate2Collection(cert)
+                        ? new X509Certificate2Collection(cert.Certificate)
                         : null,
                     false);
 
@@ -189,12 +196,14 @@ public class OpalClient : IOpalClient
             // prompt the caller to provide a certificate
             var args = new CertificateRequiredEventArgs(errorResponse.Message, uri.Host);
             CertificateRequired?.Invoke(this, args);
-            if (args.Certificate != null)
-            {
-                // caller provided a cert; register it and re-send
-                _authenticationDatabase.Add(uri.Host, args.Certificate);
-                return SendUriRequest(uri, false);
-            }
+            
+            if (args.Certificate == null) 
+                return response;
+            
+            // caller provided a cert; register it and re-send
+            _authenticationDatabase.Add(new ClientCertificate(args.Certificate, uri.Host,
+                args.Certificate.GetNameInfo(X509NameType.SimpleName, false)));
+            return SendUriRequest(uri, false);
         }
         else if (response.IsRedirect && response is RedirectResponse redirectResponse)
         {
@@ -220,8 +229,10 @@ public class OpalClient : IOpalClient
 
                 // redirects have to support relative URIs;
                 if (!nextUri.IsAbsoluteUri)
+                {
                     nextUri = new UriBuilder(nextUri)
                         { Scheme = uri.Scheme, Host = uri.Host, Port = uri.IsDefaultPort ? -1 : uri.Port }.Uri;
+                }
 
                 return SendUriRequest(nextUri, depth: depth + 1);
             }

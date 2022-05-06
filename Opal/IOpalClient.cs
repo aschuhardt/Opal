@@ -1,10 +1,16 @@
-﻿using Opal.Event;
+﻿using Opal.Authentication.Certificate;
+using Opal.Event;
 using Opal.Response;
 
 namespace Opal;
 
 public interface IOpalClient
 {
+    /// <summary>
+    ///     All of the client certificates currently available to the client for authentication purposes
+    /// </summary>
+    IEnumerable<IClientCertificate> Certificates { get; }
+
     /// <summary>
     ///     Sends a request to the provided relative or absolute URI
     /// </summary>
@@ -30,6 +36,12 @@ public interface IOpalClient
     ///     whether they want to trust that certificate
     /// </summary>
     event EventHandler<RemoteCertificateUnrecognizedEventArgs> RemoteCertificateUnrecognized;
+
+    /// <summary>
+    ///     Removes the client certificate metadata from the client's certificate database and deletes any associated resources
+    /// </summary>
+    void RemoveCertificate(IClientCertificate certificate);
+
 
     event EventHandler<InputRequiredEventArgs> InputRequired;
     event EventHandler<CertificateRequiredEventArgs> CertificateRequired;
