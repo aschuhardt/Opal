@@ -11,6 +11,15 @@ client.ConfirmRedirect += ConfirmRedirect;
 client.RemoteCertificateUnrecognized += ConfirmUntrustedCertificate;
 client.CertificateRequired += GenerateCertificate;
 client.CertificatePasswordRequired += PromptForPassword;
+client.CertificateExpired += RenewExpiredCertificate;
+
+void RenewExpiredCertificate(object? sender, CertificateExpiredEventArgs e)
+{
+    Console.WriteLine($"Renewing certificate with fingerprint {e.Existing.Fingerprint}");
+    var newCert = e.Existing.Renew(TimeSpan.FromSeconds(30));
+    e.Replacement = newCert;
+    e.Password = GetInput($"Enter password for {newCert.Name} at {newCert.Host} ({newCert.Fingerprint[..6]})");
+}
 
 void PromptForPassword(object? sender, CertificatePasswordRequiredEventArgs e)
 {
@@ -21,7 +30,7 @@ void GenerateCertificate(object? sender, CertificateRequiredEventArgs e)
 {
     var name = GetInput("Name to associate with this certificate");
     e.Password = GetInput("Enter a password to encrypt the key");
-    e.Certificate = CertificateHelper.GenerateNew(TimeSpan.FromDays(365), name);
+    e.Certificate = CertificateHelper.GenerateNew(TimeSpan.FromSeconds(30), name);
 }
 
 void ConfirmUntrustedCertificate(object? sender, RemoteCertificateUnrecognizedEventArgs e)

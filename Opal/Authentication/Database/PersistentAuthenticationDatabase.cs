@@ -154,7 +154,8 @@ internal class PersistentAuthenticationDatabase : InMemoryAuthenticationDatabase
                     loaded = X509Certificate2.CreateFromPemFile(certInfo.Path);
 
                 // workaround for a Windows issue https://github.com/dotnet/runtime/issues/23749
-                loaded = new X509Certificate2(loaded.Export(X509ContentType.Pkcs12));
+                loaded = new X509Certificate2(loaded.Export(X509ContentType.Pkcs12), null as string,
+                    X509KeyStorageFlags.EphemeralKeySet);
 
                 certificate = new ClientCertificate(loaded, host, certInfo.Name);
             }
@@ -188,10 +189,11 @@ internal class PersistentAuthenticationDatabase : InMemoryAuthenticationDatabase
         if (StoredCertificates.ContainsKey(host) && !_certInfoByHost.ContainsKey(host))
             return;
 
+        var path = _certInfoByHost[host].Path;
+
         _certInfoByHost.Remove(host);
         SerializeConfiguration();
 
-        var path = _certInfoByHost[host].Path;
         if (File.Exists(path))
         {
             lock (_certLock)

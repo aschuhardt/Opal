@@ -65,6 +65,7 @@ public class OpalClient : IOpalClient
     public event EventHandler<RemoteCertificateUnrecognizedEventArgs> RemoteCertificateUnrecognized;
     public event EventHandler<CertificatePasswordRequiredEventArgs> CertificatePasswordRequired;
     public event EventHandler<SendingClientCertificateEventArgs> SendingClientCertificate;
+    public event EventHandler<CertificateExpiredEventArgs> CertificateExpired;
     public event EventHandler<InputRequiredEventArgs> InputRequired;
     public event EventHandler<CertificateRequiredEventArgs> CertificateRequired;
     public event EventHandler<ConfirmRedirectEventArgs> ConfirmRedirect;
@@ -134,6 +135,30 @@ public class OpalClient : IOpalClient
         return false;
     }
 
+    private bool IsCertificateValid(IClientCertificate cert, out IClientCertificate validated)
+    {
+        if (DateTime.Now > cert.Certificate.NotAfter)
+        {
+            // certificate has expired; present the caller with the opportunity to renew it
+            var args = new CertificateExpiredEventArgs(cert);
+            CertificateExpired?.Invoke(this, args);
+
+            if (args.Replacement != null)
+            {
+                validated = args.Replacement;
+                _authenticationDatabase.Remove(cert);
+                _authenticationDatabase.Add(validated, args.Password);
+                return true;
+            }
+
+            validated = null;
+            return false;
+        }
+
+        validated = cert;
+        return true;
+    }
+
     private bool CanSendCertificate(IClientCertificate cert)
     {
         var args = new SendingClientCertificateEventArgs(cert);
@@ -151,7 +176,9 @@ public class OpalClient : IOpalClient
             {
                 // authenticate
                 stream.AuthenticateAsClient(uri.Host,
-                    TryGetCertificateFromDatabase(uri.Host, out var cert) && CanSendCertificate(cert)
+                    TryGetCertificateFromDatabase(uri.Host, out var cert) &&
+                    IsCertificateValid(cert, out var validated) &&
+                    CanSendCertificate(validated)
                         ? new X509Certificate2Collection(cert.Certificate)
                         : null, false);
 

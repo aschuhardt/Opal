@@ -79,4 +79,13 @@ public interface IOpalClient
     ///     sent.
     /// </summary>
     event EventHandler<SendingClientCertificateEventArgs> SendingClientCertificate;
+
+    /// <summary>
+    ///     Raised prior to sending a client certificate to the server if that certificate is found to have been expired.  Set
+    ///     <see cref="CertificateExpiredEventArgs.Replacement" /> to a new certificate instance if you'd like to use that one
+    ///     instead.  Otherwise no action will be taken and the request will proceed as usual. Set
+    ///     <see cref="CertificateExpiredEventArgs.Password" /> in order to encrypt the certificate's private key.
+    ///     <seealso cref="CertificateHelper.GenerateNew" />
+    /// </summary>
+    event EventHandler<CertificateExpiredEventArgs> CertificateExpired;
 }

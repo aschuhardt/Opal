@@ -19,4 +19,9 @@ internal class ClientCertificate : IClientCertificate
     public string Host { get; }
     public string Name { get; }
     public string Fingerprint => _certificate.GetCertHashString(HashAlgorithmName.SHA256);
+
+    public IClientCertificate Renew(TimeSpan lifespan)
+    {
+        return new ClientCertificate(CertificateHelper.Renew(lifespan, _certificate), Host, Name);
+    }
 }

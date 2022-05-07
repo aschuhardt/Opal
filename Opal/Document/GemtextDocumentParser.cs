@@ -74,7 +74,7 @@ public class GemtextDocumentParser : IGemtextDocumentParser
 
     private bool TryBuildNormalizedUri(string uri, out Uri parsed)
     {
-        if (!uri.StartsWith('/')) 
+        if (!uri.StartsWith('/'))
             return Uri.TryCreate(uri, UriKind.Absolute, out parsed);
 
         // build an absolute URI from a relative one
@@ -102,12 +102,16 @@ public class GemtextDocumentParser : IGemtextDocumentParser
             return new TextLine(line);
 
         if (!trimmedAfterPrefix.Contains(' '))
+        {
             return !TryBuildNormalizedUri(trimmedAfterPrefix, out var parsed)
                 ? new TextLine(line)
                 : new LinkLine(null, parsed);
+        }
         else
+        {
             return !TryBuildNormalizedUri(trimmedAfterPrefix[..trimmedAfterPrefix.IndexOf(' ')], out var parsed)
                 ? new TextLine(line)
                 : new LinkLine(trimmedAfterPrefix[trimmedAfterPrefix.IndexOf(' ')..].Trim(), parsed);
+        }
     }
 }
