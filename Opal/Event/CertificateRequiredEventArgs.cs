@@ -13,4 +13,5 @@ public class CertificateRequiredEventArgs : EventArgs
     public string Message { get; }
     public string Host { get; }
     public X509Certificate2 Certificate { get; set; }
+    public string Password { get; set; }
 }

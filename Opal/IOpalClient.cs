@@ -38,10 +38,14 @@ public interface IOpalClient
     event EventHandler<RemoteCertificateUnrecognizedEventArgs> RemoteCertificateUnrecognized;
 
     /// <summary>
+    ///     Raised before attempting to load an encrypted client certificate
+    /// </summary>
+    public event EventHandler<CertificatePasswordRequiredEventArgs> CertificatePasswordRequired;
+
+    /// <summary>
     ///     Removes the client certificate metadata from the client's certificate database and deletes any associated resources
     /// </summary>
     void RemoveCertificate(IClientCertificate certificate);
-
 
     event EventHandler<InputRequiredEventArgs> InputRequired;
     event EventHandler<CertificateRequiredEventArgs> CertificateRequired;

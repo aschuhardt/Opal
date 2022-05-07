@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using Opal.Authentication.Certificate;
+using Opal.Event;
 
 namespace Opal.Authentication.Database;
 
@@ -13,12 +14,14 @@ internal class InMemoryAuthenticationDatabase : IAuthenticationDatabase
             new ConcurrentDictionary<string, IClientCertificate>(StringComparer.InvariantCultureIgnoreCase);
     }
 
-    public virtual bool TryGetCertificate(string host, out IClientCertificate certificate)
+    public virtual CertificateResult TryGetCertificate(string host, out IClientCertificate certificate)
     {
-        return StoredCertificates.TryGetValue(host, out certificate);
+        return StoredCertificates.TryGetValue(host, out certificate)
+            ? CertificateResult.Success
+            : CertificateResult.Missing;
     }
 
-    public virtual void Add(IClientCertificate certificate)
+    public virtual void Add(IClientCertificate certificate, string password)
     {
         StoredCertificates[certificate.Host] = certificate;
     }
@@ -31,9 +34,9 @@ internal class InMemoryAuthenticationDatabase : IAuthenticationDatabase
 
     public void Remove(IClientCertificate certificate)
     {
-        if (StoredCertificates.ContainsKey(certificate.Host))
-            StoredCertificates.Remove(certificate.Host);
+        Remove(certificate.Host);
     }
 
     public IEnumerable<IClientCertificate> Certificates => StoredCertificates.Values;
+    public virtual event EventHandler<CertificatePasswordRequiredEventArgs> CertificatePasswordRequired;
 }

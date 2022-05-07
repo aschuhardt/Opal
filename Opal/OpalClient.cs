@@ -19,6 +19,7 @@ public class OpalClient : IOpalClient
     private const int DefaultPort = 1965;
     private const string Scheme = "gemini";
     private const string SchemePrefix = $"{Scheme}://";
+    private const int DecryptPasswordAttempts = 5;
 
     private readonly IAuthenticationDatabase _authenticationDatabase;
     private readonly ICertificateDatabase _certificateDatabase;
@@ -34,6 +35,9 @@ public class OpalClient : IOpalClient
         _certificateDatabase = certificateDatabase;
         _authenticationDatabase = authenticationDatabase;
         _redirectBehavior = redirectBehavior;
+
+        _authenticationDatabase.CertificatePasswordRequired +=
+            (sender, args) => CertificatePasswordRequired?.Invoke(sender, args);
     }
 
     public IGeminiResponse SendRequest(string uri)
@@ -52,7 +56,9 @@ public class OpalClient : IOpalClient
 
     public event EventHandler<RemoteCertificateInvalidEventArgs> RemoteCertificateInvalid;
     public event EventHandler<RemoteCertificateUnrecognizedEventArgs> RemoteCertificateUnrecognized;
+    public event EventHandler<CertificatePasswordRequiredEventArgs> CertificatePasswordRequired;
     public IEnumerable<IClientCertificate> Certificates => _authenticationDatabase.Certificates;
+
     public void RemoveCertificate(IClientCertificate certificate)
     {
         _authenticationDatabase.Remove(certificate);
@@ -106,6 +112,27 @@ public class OpalClient : IOpalClient
         };
     }
 
+    private bool TryGetCertificateFromDatabase(string host, out IClientCertificate cert)
+    {
+        cert = null;
+
+        for (var i = 0; i < DecryptPasswordAttempts; i++)
+        {
+            // ReSharper disable once SwitchStatementHandlesSomeKnownEnumValuesWithDefault
+            switch (_authenticationDatabase.TryGetCertificate(host, out cert))
+            {
+                case CertificateResult.Success:
+                    return true;
+                case CertificateResult.DecryptionFailure:
+                    continue;
+                default:
+                    return false;
+            }
+        }
+
+        return false;
+    }
+
     private IGeminiResponse SendUriRequest(Uri uri, bool allowRepeat = true, int depth = 1)
     {
         try
@@ -116,10 +143,9 @@ public class OpalClient : IOpalClient
             {
                 // authenticate
                 stream.AuthenticateAsClient(uri.Host,
-                    _authenticationDatabase.TryGetCertificate(uri.Host, out var cert) && cert != null
+                    TryGetCertificateFromDatabase(uri.Host, out var cert) && cert != null
                         ? new X509Certificate2Collection(cert.Certificate)
-                        : null,
-                    false);
+                        : null, false);
 
                 // send the initial request
                 SendRequest(uri, stream);
@@ -196,13 +222,13 @@ public class OpalClient : IOpalClient
             // prompt the caller to provide a certificate
             var args = new CertificateRequiredEventArgs(errorResponse.Message, uri.Host);
             CertificateRequired?.Invoke(this, args);
-            
-            if (args.Certificate == null) 
+
+            if (args.Certificate == null)
                 return response;
-            
+
             // caller provided a cert; register it and re-send
             _authenticationDatabase.Add(new ClientCertificate(args.Certificate, uri.Host,
-                args.Certificate.GetNameInfo(X509NameType.SimpleName, false)));
+                args.Certificate.GetNameInfo(X509NameType.SimpleName, false)), args.Password);
             return SendUriRequest(uri, false);
         }
         else if (response.IsRedirect && response is RedirectResponse redirectResponse)

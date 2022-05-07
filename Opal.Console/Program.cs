@@ -10,10 +10,17 @@ client.InputRequired += PromptForInput;
 client.ConfirmRedirect += ConfirmRedirect;
 client.RemoteCertificateUnrecognized += ConfirmUntrustedCertificate;
 client.CertificateRequired += GenerateCertificate;
+client.CertificatePasswordRequired += PromptForPassword;
+
+void PromptForPassword(object? sender, CertificatePasswordRequiredEventArgs e)
+{
+    e.Password = GetInput($"Enter password for {e.Name} at {e.Host} ({e.Fingerprint[..6]})");
+}
 
 void GenerateCertificate(object? sender, CertificateRequiredEventArgs e)
 {
     var name = GetInput("Name to associate with this certificate");
+    e.Password = GetInput("Enter a password to encrypt the key");
     e.Certificate = CertificateHelper.GenerateNew(TimeSpan.FromDays(365), name);
 }
 
@@ -89,9 +96,7 @@ while (true)
         }
     }
     else
-    {
         Console.WriteLine(response.ToString());
-    }
 }
 
 Console.WriteLine("Goodbye!");

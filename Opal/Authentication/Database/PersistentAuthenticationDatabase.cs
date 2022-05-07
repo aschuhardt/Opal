@@ -2,12 +2,14 @@
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using Opal.Authentication.Certificate;
+using Opal.Event;
 using Opal.Persistence;
 
 namespace Opal.Authentication.Database;
 
 internal class PersistentAuthenticationDatabase : InMemoryAuthenticationDatabase
 {
+    private const int KeyDerivationIterations = 100_000;
     private const string ConfigFileName = "host_certs.json";
     private static readonly object _certLock = new();
     private static readonly object _configLock = new();
@@ -71,22 +73,42 @@ internal class PersistentAuthenticationDatabase : InMemoryAuthenticationDatabase
         }
     }
 
-    public override void Add(IClientCertificate cert)
+    private static void ExportEncryptedPem(string path, X509Certificate2 certificate, string password)
+    {
+        lock (_certLock)
+        {
+            using var file = File.CreateText(path);
+            file.WriteLine(PemEncoding.Write("CERTIFICATE", certificate.RawData));
+            file.WriteLine(PemEncoding.Write("ENCRYPTED PRIVATE KEY",
+                certificate.GetRSAPrivateKey()?.ExportEncryptedPkcs8PrivateKey(password,
+                    new PbeParameters(PbeEncryptionAlgorithm.Aes256Cbc, HashAlgorithmName.SHA256,
+                        KeyDerivationIterations))));
+        }
+    }
+
+    public override void Add(IClientCertificate cert, string password)
     {
         var path = BuildCertificatePath(cert.Certificate);
 
-        _certInfoByHost[cert.Host] = new DiskCertificateInfo
+        var certInfo = new DiskCertificateInfo
         {
             Path = path,
             Host = cert.Host,
             Name = cert.Name,
-            Encrypted = false // TODO
+            Fingerprint = cert.Fingerprint,
+            Encrypted = !string.IsNullOrEmpty(password)
         };
 
-        ExportPem(path, cert.Certificate);
+        _certInfoByHost[cert.Host] = certInfo;
+
+        if (certInfo.Encrypted)
+            ExportEncryptedPem(path, cert.Certificate, password);
+        else
+            ExportPem(path, cert.Certificate);
+
         SerializeConfiguration();
 
-        base.Add(cert);
+        base.Add(cert, null);
     }
 
     private static string BuildCertificatePath(X509Certificate2 certificate)
@@ -95,15 +117,15 @@ internal class PersistentAuthenticationDatabase : InMemoryAuthenticationDatabase
             certificate.GetCertHashString(HashAlgorithmName.SHA1) + ".pem");
     }
 
-    public override bool TryGetCertificate(string host, out IClientCertificate certificate)
+    public override CertificateResult TryGetCertificate(string host, out IClientCertificate certificate)
     {
         // if it's already been loaded, return right away
-        if (base.TryGetCertificate(host, out certificate))
-            return true;
+        if (base.TryGetCertificate(host, out certificate) == CertificateResult.Success)
+            return CertificateResult.Success;
 
         // if it's not known, there's nothing we can do
         if (!_certInfoByHost.ContainsKey(host))
-            return false;
+            return CertificateResult.Missing;
 
         var certInfo = _certInfoByHost[host];
 
@@ -112,7 +134,7 @@ internal class PersistentAuthenticationDatabase : InMemoryAuthenticationDatabase
         {
             _certInfoByHost.Remove(host);
             SerializeConfiguration();
-            return false;
+            return CertificateResult.Missing;
         }
 
         try
@@ -120,26 +142,45 @@ internal class PersistentAuthenticationDatabase : InMemoryAuthenticationDatabase
             // try to load the certificate from disk
             lock (_certLock)
             {
+                X509Certificate2 loaded;
+                if (certInfo.Encrypted)
+                {
+                    if (!TryGetPassword(certInfo, out var password))
+                        return CertificateResult.NoPassword;
+
+                    loaded = X509Certificate2.CreateFromEncryptedPemFile(certInfo.Path, password);
+                }
+                else
+                    loaded = X509Certificate2.CreateFromPemFile(certInfo.Path);
+
                 // workaround for a Windows issue https://github.com/dotnet/runtime/issues/23749
-                // TODO when encrypted
-                var loaded = new X509Certificate2(X509Certificate2.CreateFromPemFile(certInfo.Path)
-                    .Export(X509ContentType.Pkcs12));
+                loaded = new X509Certificate2(loaded.Export(X509ContentType.Pkcs12));
+
                 certificate = new ClientCertificate(loaded, host, certInfo.Name);
             }
 
-            base.Add(certificate);
-            return true;
+            base.Add(certificate, null);
+
+            return CertificateResult.Success;
+        }
+        catch (CryptographicException)
+        {
+            certificate = null;
+            return CertificateResult.DecryptionFailure;
         }
         catch
         {
             certificate = null;
-
-            // something went wrong; forget the metadata but leave the file in case
-            // we can recover it manually
-            _certInfoByHost.Remove(host);
-            SerializeConfiguration();
-            return false;
+            return CertificateResult.Error;
         }
+    }
+
+    private bool TryGetPassword(DiskCertificateInfo certInfo, out string password)
+    {
+        var args = new CertificatePasswordRequiredEventArgs(certInfo.Host, certInfo.Name, certInfo.Fingerprint);
+        CertificatePasswordRequired?.Invoke(this, args);
+        password = args.Password;
+        return !string.IsNullOrEmpty(password);
     }
 
     public override void Remove(string host)
@@ -161,4 +202,6 @@ internal class PersistentAuthenticationDatabase : InMemoryAuthenticationDatabase
 
         base.Remove(host);
     }
+
+    public override event EventHandler<CertificatePasswordRequiredEventArgs> CertificatePasswordRequired;
 }
