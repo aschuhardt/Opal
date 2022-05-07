@@ -15,7 +15,7 @@ A client library for the Gemini protocol written for .NET 6
 ## Usage
 Install the Nuget package
 ```
-Install-Package Opal -Version 1.0.0
+Install-Package Opal -Version 1.0.3
 ```
 Create an instance of a client and make requests
 ```csharp
@@ -48,7 +48,7 @@ var client = OpalClient.CreateNew(OpalOptions.Default);
 // using the default configuration, this certificate will be saved to the disk and
 // sent whenever this host asks for it
 client.CertificateRequired += (_, e) =>
-  e.Certificate = CertificateHelper.GenerateNew($"cool glasses for {e.Host}", TimeSpan.FromDays(100));
+  e.Certificate = CertificateHelper.GenerateNew(TimeSpan.FromDays(100), "some person");
 
 client.InputRequired += 
   (_, e) => 
