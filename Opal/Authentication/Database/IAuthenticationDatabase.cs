@@ -1,5 +1,4 @@
-﻿using System.Security.Cryptography.X509Certificates;
-using Opal.Authentication.Certificate;
+﻿using Opal.Authentication.Certificate;
 using Opal.Event;
 
 namespace Opal.Authentication.Database;

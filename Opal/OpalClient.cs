@@ -54,9 +54,6 @@ public class OpalClient : IOpalClient
         return SendUriRequest(new UriBuilder(uri) { Query = input }.Uri);
     }
 
-    public event EventHandler<RemoteCertificateInvalidEventArgs> RemoteCertificateInvalid;
-    public event EventHandler<RemoteCertificateUnrecognizedEventArgs> RemoteCertificateUnrecognized;
-    public event EventHandler<CertificatePasswordRequiredEventArgs> CertificatePasswordRequired;
     public IEnumerable<IClientCertificate> Certificates => _authenticationDatabase.Certificates;
 
     public void RemoveCertificate(IClientCertificate certificate)
@@ -64,6 +61,10 @@ public class OpalClient : IOpalClient
         _authenticationDatabase.Remove(certificate);
     }
 
+    public event EventHandler<RemoteCertificateInvalidEventArgs> RemoteCertificateInvalid;
+    public event EventHandler<RemoteCertificateUnrecognizedEventArgs> RemoteCertificateUnrecognized;
+    public event EventHandler<CertificatePasswordRequiredEventArgs> CertificatePasswordRequired;
+    public event EventHandler<SendingClientCertificateEventArgs> SendingClientCertificate;
     public event EventHandler<InputRequiredEventArgs> InputRequired;
     public event EventHandler<CertificateRequiredEventArgs> CertificateRequired;
     public event EventHandler<ConfirmRedirectEventArgs> ConfirmRedirect;
@@ -133,6 +134,13 @@ public class OpalClient : IOpalClient
         return false;
     }
 
+    private bool CanSendCertificate(IClientCertificate cert)
+    {
+        var args = new SendingClientCertificateEventArgs(cert);
+        SendingClientCertificate?.Invoke(this, args);
+        return !args.Cancel;
+    }
+
     private IGeminiResponse SendUriRequest(Uri uri, bool allowRepeat = true, int depth = 1)
     {
         try
@@ -143,7 +151,7 @@ public class OpalClient : IOpalClient
             {
                 // authenticate
                 stream.AuthenticateAsClient(uri.Host,
-                    TryGetCertificateFromDatabase(uri.Host, out var cert) && cert != null
+                    TryGetCertificateFromDatabase(uri.Host, out var cert) && CanSendCertificate(cert)
                         ? new X509Certificate2Collection(cert.Certificate)
                         : null, false);
 

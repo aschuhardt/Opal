@@ -50,4 +50,5 @@ public interface IOpalClient
     event EventHandler<InputRequiredEventArgs> InputRequired;
     event EventHandler<CertificateRequiredEventArgs> CertificateRequired;
     event EventHandler<ConfirmRedirectEventArgs> ConfirmRedirect;
+    event EventHandler<SendingClientCertificateEventArgs> SendingClientCertificate;
 }
