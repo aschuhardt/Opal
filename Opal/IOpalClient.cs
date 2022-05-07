@@ -1,9 +1,13 @@
-﻿using Opal.Authentication.Certificate;
+﻿using Opal.Authentication;
+using Opal.Authentication.Certificate;
 using Opal.Event;
 using Opal.Response;
 
 namespace Opal;
 
+/// <summary>
+///     Describes the behavior of a Gemini client implementation
+/// </summary>
 public interface IOpalClient
 {
     /// <summary>
@@ -47,8 +51,32 @@ public interface IOpalClient
     /// </summary>
     void RemoveCertificate(IClientCertificate certificate);
 
+    /// <summary>
+    ///     Raised when a server has indicated that user input is required; if input is provided via
+    ///     <see cref="InputRequiredEventArgs.Value" />, then the initial request is re-sent with that value as a query
+    ///     parameter
+    /// </summary>
     event EventHandler<InputRequiredEventArgs> InputRequired;
+
+    /// <summary>
+    ///     Raised when a server has indicated that a client certificate is required, and none is found to exist in the
+    ///     authentication database.  Use <see cref="CertificateHelper" /> in order to generate a new client certificate to
+    ///     store in <see cref="CertificateRequiredEventArgs.Certificate" />.
+    ///     <seealso cref="CertificateHelper.GenerateNew" />
+    /// </summary>
     event EventHandler<CertificateRequiredEventArgs> CertificateRequired;
+
+    /// <summary>
+    ///     Raised prior to following a redirect if <see cref="RedirectBehavior.Confirm" /> was specified on
+    ///     <see cref="OpalOptions" />
+    ///     <seealso cref="RedirectBehavior.Confirm" />
+    /// </summary>
     event EventHandler<ConfirmRedirectEventArgs> ConfirmRedirect;
+
+    /// <summary>
+    ///     Raised prior to sending a client certificate to the server.  Set
+    ///     <see cref="SendingClientCertificateEventArgs.Cancel" /> to true in order to prevent the certificate from being
+    ///     sent.
+    /// </summary>
     event EventHandler<SendingClientCertificateEventArgs> SendingClientCertificate;
 }
