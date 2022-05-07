@@ -34,4 +34,16 @@ public static class CertificateHelper
 
         return certificate;
     }
+
+    public static X509Certificate2 Renew(TimeSpan lifespan, X509Certificate2 certificate)
+    {
+        var key = certificate.GetRSAPrivateKey()
+                  ?? throw new ArgumentNullException(nameof(certificate),
+                      "The certificate is missing its private RSA key");
+
+        var certRequest = new CertificateRequest(certificate.SubjectName, key,
+            HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+
+        return certRequest.CreateSelfSigned(DateTimeOffset.UtcNow, DateTimeOffset.Now + lifespan);
+    }
 }
