@@ -23,6 +23,9 @@ public class GemtextDocumentParser : IGemtextDocumentParser
 
     public IEnumerable<ILine> ParseDocument(Stream body)
     {
+        if (!body.CanRead)
+            yield break;
+
         using var reader = new StreamReader(body);
         var formatted = false;
         while (!reader.EndOfStream)
