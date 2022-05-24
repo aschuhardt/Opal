@@ -8,7 +8,7 @@ internal class GeminiHeader
     private const int HeaderPartStatus = 1;
     private const int HeaderPartMeta = 2;
 
-    private static readonly Regex HeaderPattern = new("([1-6][0-9]?)(?: (.*))?\r\n",
+    private static readonly Regex HeaderPattern = new("([1-6][0-9]?)(?: (.*))?",
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
     private static readonly Regex LanguagePattern = new("lang=([a-zA-Z,-])+",
@@ -19,6 +19,8 @@ internal class GeminiHeader
         StatusCode = status;
         Meta = meta;
     }
+
+    public int LengthIncludingNewline { get; private set; }
 
     public int StatusCode { get; }
 
@@ -37,16 +39,15 @@ internal class GeminiHeader
             yield return language;
     }
 
-    public static GeminiHeader Parse(byte[] buffer, out int end)
+    public static GeminiHeader Parse(string header)
     {
-        end = default;
-
-        var match = HeaderPattern.Match(Encoding.UTF8.GetString(buffer));
+        var match = HeaderPattern.Match(header);
         if (!match.Success || !int.TryParse(match.Groups[HeaderPartStatus].ValueSpan, out var statusCode))
             return null;
 
-        end = match.Length;
-
-        return new GeminiHeader(statusCode, match.Groups[HeaderPartMeta].Value);
+        return new GeminiHeader(statusCode, match.Groups[HeaderPartMeta].Value)
+        {
+            LengthIncludingNewline = Encoding.UTF8.GetByteCount(header) + Encoding.UTF8.GetByteCount("\r\n")
+        };
     }
 }

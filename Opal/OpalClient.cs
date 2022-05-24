@@ -14,9 +14,9 @@ namespace Opal;
 
 public class OpalClient : IOpalClient
 {
-    private const int HeaderBufferLength = 2048;
     private const int MaxRedirectDepth = 5;
     private const int DefaultPort = 1965;
+    private const int Timeout = 4000;
     private const string Scheme = "gemini";
     private const string SchemePrefix = $"{Scheme}://";
     private const int DecryptPasswordAttempts = 5;
@@ -85,6 +85,9 @@ public class OpalClient : IOpalClient
         // make sure the status code is recognizable
         if (!Enum.IsDefined(typeof(StatusCode), header.StatusCode))
             return new InvalidResponse(uri);
+
+        // seek past the header + newline
+        contents.Seek(header.LengthIncludingNewline, SeekOrigin.Begin);
 
         var status = (StatusCode)header.StatusCode;
         return status switch
@@ -174,6 +177,9 @@ public class OpalClient : IOpalClient
 
             using (var stream = BuildSslStream(uri))
             {
+                stream.ReadTimeout = Timeout;
+                stream.WriteTimeout = Timeout;
+
                 // authenticate
                 stream.AuthenticateAsClient(uri.Host,
                     TryGetCertificateFromDatabase(uri.Host, out var cert) &&
@@ -186,7 +192,7 @@ public class OpalClient : IOpalClient
                 SendRequest(uri, stream);
 
                 // read the response from the server
-                if (TrySendSuccessResponse(uri, stream, out response))
+                if (TryReadResponse(uri, stream, out response))
                     return response;
             }
 
@@ -202,32 +208,27 @@ public class OpalClient : IOpalClient
         }
     }
 
-    private static bool TrySendSuccessResponse(Uri uri, Stream stream, out IGeminiResponse response)
+    private static bool TryReadResponse(Uri uri, Stream stream, out IGeminiResponse response)
     {
-        var bodyStream = new MemoryStream();
-        var buffer = new byte[HeaderBufferLength];
-        var bytesRead = stream.Read(buffer, 0, buffer.Length);
+        // read the entire response into a buffer
+        var body = new MemoryStream();
+        stream.CopyTo(body);
 
-        // the first read will contain the header; if the status is 'success', then we will copy the rest of the buffer onto the response
-        var header = GeminiHeader.Parse(buffer, out var bodyBeginsAt);
-        if (header == null)
+        // the first line will contain the header; if the status is 'success', then we will copy the rest of the buffer onto the response
+        body.Seek(0, SeekOrigin.Begin);
+        using (var reader = new StreamReader(body, leaveOpen: true))
         {
-            response = new InvalidResponse(uri);
-            return false;
+            var header = GeminiHeader.Parse(reader.ReadLine());
+            if (header == null)
+            {
+                response = new InvalidResponse(uri);
+                return false;
+            }
+
+            response = BuildResponse(uri, header, body);
         }
 
-        response = BuildResponse(uri, header, bodyStream);
-
-        if (response.IsSuccess)
-        {
-            // write the rest of the initial read (everything after the header) to the body stream
-            bodyStream.Write(buffer, bodyBeginsAt, bytesRead - bodyBeginsAt);
-            stream.CopyTo(bodyStream);
-            bodyStream.Seek(0, SeekOrigin.Begin);
-            return true;
-        }
-
-        return false;
+        return response.IsSuccess;
     }
 
     private static void SendRequest(Uri uri, SslStream stream)
