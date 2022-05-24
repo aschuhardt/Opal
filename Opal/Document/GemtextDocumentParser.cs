@@ -29,7 +29,7 @@ public class GemtextDocumentParser : IGemtextDocumentParser
         using var reader = new StreamReader(body);
         var formatted = false;
         while (!reader.EndOfStream)
-            yield return CreateDocumentLine(reader.ReadLine()?.TrimStart(), ref formatted);
+            yield return CreateDocumentLine(reader.ReadLine(), ref formatted);
     }
 
     private ILine CreateDocumentLine(string line, ref bool formatted)
