@@ -5,7 +5,7 @@ namespace Opal.Response;
 
 public class GemtextResponse : SuccessfulResponse
 {
-    internal const string GemtextMimeType = "text/gemini;";
+    internal const string GemtextMimeType = "text/gemini";
     private readonly IGemtextDocumentParser _parser;
 
     internal GemtextResponse(Uri uri, Stream body, IEnumerable<string> languages) : base(body, uri, GemtextMimeType,
