@@ -2,7 +2,7 @@
 
 public class LinkLine : TextualLineBase
 {
-    internal LinkLine(string text, Uri uri) : base(text)
+    public LinkLine(string text, Uri uri) : base(text)
     {
         Uri = uri;
     }
