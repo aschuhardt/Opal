@@ -1,6 +1,6 @@
 ﻿namespace Opal.Response;
 
-internal class ErrorResponse : GeminiResponseBase
+public class ErrorResponse : GeminiResponseBase
 {
     public ErrorResponse(Uri uri, StatusCode status, string message) : base(status, uri)
     {
