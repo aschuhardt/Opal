@@ -75,46 +75,33 @@ public class GemtextDocumentParser : IGemtextDocumentParser
             : create(text.Trim());
     }
 
-    private bool TryBuildNormalizedUri(string uri, out Uri parsed)
-    {
-        if (!uri.StartsWith('/'))
-            return Uri.TryCreate(uri, UriKind.Absolute, out parsed);
-
-        // build an absolute URI from a relative one
-        var path = uri;
-        var query = string.Empty;
-        if (uri.Contains('?'))
-        {
-            path = uri[..uri.IndexOf('?')];
-            query = uri[(uri.IndexOf('?') + 1)..].TrimEnd();
-        }
-
-        parsed = new UriBuilder
-        {
-            Host = _uri.Host, Scheme = _uri.Scheme, Port = _uri.IsDefaultPort ? -1 : _uri.Port, Path = path,
-            Query = query
-        }.Uri;
-
-        return true;
-    }
-
     private ILine ParseLinkLinePrefix(string line)
     {
         var trimmedAfterPrefix = line[line.IndexOf(' ')..]?.Trim();
         if (string.IsNullOrWhiteSpace(trimmedAfterPrefix))
             return new TextLine(line);
 
-        if (!trimmedAfterPrefix.Contains(' '))
+        var parts = trimmedAfterPrefix.Split(' ', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+
+        // contains alt-text
+        if (!Uri.TryCreate(parts[0], UriKind.RelativeOrAbsolute, out var parsed))
+            return new TextLine(line.Trim());
+
+
+        if (!parsed.IsAbsoluteUri)
         {
-            return !TryBuildNormalizedUri(trimmedAfterPrefix, out var parsed)
-                ? new TextLine(line)
-                : new LinkLine(null, parsed);
+            var pathParts = parts[0].Split('?', 2,
+                StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+
+            parsed = new UriBuilder
+            {
+                Host = _uri.Host, Scheme = _uri.Scheme, Port = _uri.IsDefaultPort ? -1 : _uri.Port,
+                Path = pathParts[0],
+                Query = pathParts.Length > 1 ? pathParts[1] : string.Empty 
+            }.Uri;
+
         }
-        else
-        {
-            return !TryBuildNormalizedUri(trimmedAfterPrefix[..trimmedAfterPrefix.IndexOf(' ')], out var parsed)
-                ? new TextLine(line)
-                : new LinkLine(trimmedAfterPrefix[trimmedAfterPrefix.IndexOf(' ')..].Trim(), parsed);
-        }
+
+        return new LinkLine(parts.Length > 1 ? parts[1] : null, parsed);
     }
 }
