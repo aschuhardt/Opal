@@ -2,7 +2,7 @@
 
 public class ErrorResponse : GeminiResponseBase
 {
-    public ErrorResponse(Uri uri, StatusCode status, string message) : base(status, uri)
+    internal ErrorResponse(Uri uri, StatusCode status, string message) : base(status, uri)
     {
         Message = message;
     }
