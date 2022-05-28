@@ -49,11 +49,11 @@ public class GemtextDocumentParser : IGemtextDocumentParser
                 ref formatted, text => new FormattedBeginLine(text)),
             _ when line.StartsWith(LinePrefixFormattedToggle) && formatted => ParsePrefixLineAndToggle(line,
                 ref formatted, _ => new FormattedEndLine()),
-            _ when line.StartsWith(LinePrefixHeading1) => ParsePrefixLine(line, text => new HeadingLine(text, 1)),
-            _ when line.StartsWith(LinePrefixHeading2) => ParsePrefixLine(line, text => new HeadingLine(text, 2)),
-            _ when line.StartsWith(LinePrefixHeading3) => ParsePrefixLine(line, text => new HeadingLine(text, 3)),
-            _ when line.StartsWith(LinePrefixQuote) => ParsePrefixLine(line, text => new QuoteLine(text)),
-            _ when line.StartsWith(LinePrefixList) => ParsePrefixLine(line, text => new ListLine(text)),
+            _ when line.StartsWith(LinePrefixHeading3) => ParsePrefixLine(line, LinePrefixHeading3, text => new HeadingLine(text, 3)),
+            _ when line.StartsWith(LinePrefixHeading2) => ParsePrefixLine(line, LinePrefixHeading2, text => new HeadingLine(text, 2)),
+            _ when line.StartsWith(LinePrefixHeading1) => ParsePrefixLine(line,LinePrefixHeading1, text => new HeadingLine(text, 1)),
+            _ when line.StartsWith(LinePrefixQuote) => ParsePrefixLine(line, LinePrefixQuote, text => new QuoteLine(text)),
+            _ when line.StartsWith(LinePrefixList) => ParsePrefixLine(line, LinePrefixList, text => new ListLine(text)),
             _ when string.IsNullOrWhiteSpace(line) => new EmptyLine(),
             _ => new TextLine(line)
         };
@@ -67,9 +67,9 @@ public class GemtextDocumentParser : IGemtextDocumentParser
             : create(null);
     }
 
-    private static ILine ParsePrefixLine<T>(string line, Func<string, T> create) where T : ILine
+    private static ILine ParsePrefixLine<T>(string line, string prefix, Func<string, T> create) where T : ILine
     {
-        var text = line[line.IndexOf(' ')..];
+        var text = line[prefix.Length..];
         return string.IsNullOrWhiteSpace(text)
             ? new TextLine(line)
             : create(text.Trim());
@@ -77,7 +77,7 @@ public class GemtextDocumentParser : IGemtextDocumentParser
 
     private ILine ParseLinkLinePrefix(string line)
     {
-        var trimmedAfterPrefix = line[line.IndexOf(' ')..]?.Trim();
+        var trimmedAfterPrefix = line[LinePrefixLink.Length..]?.Trim();
         if (string.IsNullOrWhiteSpace(trimmedAfterPrefix))
             return new TextLine(line);
 
