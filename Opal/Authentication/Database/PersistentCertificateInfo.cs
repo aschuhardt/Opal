@@ -1,6 +1,6 @@
 namespace Opal.Authentication.Database;
 
-internal class DiskCertificateInfo
+public class PersistentCertificateInfo
 {
     public string Host { get; set; }
     public string Path { get; set; }

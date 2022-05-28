@@ -2,7 +2,7 @@
 
 namespace Opal.Tofu;
 
-internal class DummyCertificateDatabase : ICertificateDatabase
+public class DummyCertificateDatabase : ICertificateDatabase
 {
     public virtual bool IsCertificateValid(string host, X509Certificate certificate,
         out InvalidCertificateReason result)

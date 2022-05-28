@@ -1,4 +1,5 @@
-﻿using Opal.Response;
+﻿using Opal.Authentication.Database;
+using Opal.Response;
 
 namespace Opal;
 

@@ -4,7 +4,7 @@ using Opal.Event;
 
 namespace Opal.Authentication.Database;
 
-internal class InMemoryAuthenticationDatabase : IAuthenticationDatabase
+public class InMemoryAuthenticationDatabase : IAuthenticationDatabase
 {
     protected readonly IDictionary<string, IClientCertificate> StoredCertificates;
 

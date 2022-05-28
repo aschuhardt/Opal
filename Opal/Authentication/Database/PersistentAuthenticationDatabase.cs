@@ -7,46 +7,50 @@ using Opal.Persistence;
 
 namespace Opal.Authentication.Database;
 
-internal class PersistentAuthenticationDatabase : InMemoryAuthenticationDatabase
+public class PersistentAuthenticationDatabase : InMemoryAuthenticationDatabase
 {
     private const int KeyDerivationIterations = 100_000;
     private const string ConfigFileName = "host_certs.json";
     private static readonly object _certLock = new();
     private static readonly object _configLock = new();
-    private readonly IDictionary<string, DiskCertificateInfo> _certInfoByHost;
+    private readonly IDictionary<string, PersistentCertificateInfo> _certInfoByHost;
+    private readonly string _rootPath;
 
-    public PersistentAuthenticationDatabase()
+    public PersistentAuthenticationDatabase(string path)
     {
         _certInfoByHost = DeserializeConfiguration();
+        _rootPath = path ?? PersistenceHelper.BuildConfigDirectory();
+        if (!Directory.Exists(_rootPath))
+            Directory.CreateDirectory(_rootPath);
     }
 
-    private static IDictionary<string, DiskCertificateInfo> DeserializeConfiguration()
+    protected virtual IDictionary<string, PersistentCertificateInfo> DeserializeConfiguration()
     {
-        var path = Path.Combine(PersistenceHelper.BuildConfigDirectory(), ConfigFileName);
+        var path = Path.Combine(_rootPath, ConfigFileName);
 
         if (!File.Exists(path))
-            return new Dictionary<string, DiskCertificateInfo>();
+            return new Dictionary<string, PersistentCertificateInfo>();
 
         try
         {
             lock (_configLock)
             {
                 using var file = File.OpenRead(path);
-                return JsonSerializer.Deserialize<IEnumerable<DiskCertificateInfo>>(file)?
-                    .ToDictionary(c => c.Host) ?? new Dictionary<string, DiskCertificateInfo>();
+                return JsonSerializer.Deserialize<IEnumerable<PersistentCertificateInfo>>(file)?
+                    .ToDictionary(c => c.Host) ?? new Dictionary<string, PersistentCertificateInfo>();
             }
         }
         catch (Exception e)
         {
             Console.Error.WriteLine(e.Message);
             Console.Error.WriteLine(e.StackTrace);
-            return new Dictionary<string, DiskCertificateInfo>();
+            return new Dictionary<string, PersistentCertificateInfo>();
         }
     }
 
-    private void SerializeConfiguration()
+    protected virtual void SerializeConfiguration()
     {
-        var path = Path.Combine(PersistenceHelper.BuildConfigDirectory(), ConfigFileName);
+        var path = Path.Combine(_rootPath, ConfigFileName);
 
         try
         {
@@ -90,7 +94,7 @@ internal class PersistentAuthenticationDatabase : InMemoryAuthenticationDatabase
     {
         var path = BuildCertificatePath(cert.Certificate);
 
-        var certInfo = new DiskCertificateInfo
+        var certInfo = new PersistentCertificateInfo
         {
             Path = path,
             Host = cert.Host,
@@ -111,9 +115,9 @@ internal class PersistentAuthenticationDatabase : InMemoryAuthenticationDatabase
         base.Add(cert, null);
     }
 
-    private static string BuildCertificatePath(X509Certificate2 certificate)
+    protected virtual string BuildCertificatePath(X509Certificate2 certificate)
     {
-        return Path.Combine(PersistenceHelper.BuildConfigDirectory("certs"),
+        return Path.Combine(_rootPath,
             certificate.GetCertHashString(HashAlgorithmName.SHA1) + ".pem");
     }
 
@@ -176,7 +180,7 @@ internal class PersistentAuthenticationDatabase : InMemoryAuthenticationDatabase
         }
     }
 
-    private bool TryGetPassword(DiskCertificateInfo certInfo, out string password)
+    protected virtual bool TryGetPassword(PersistentCertificateInfo certInfo, out string password)
     {
         var args = new CertificatePasswordRequiredEventArgs(certInfo.Host, certInfo.Name, certInfo.Fingerprint);
         CertificatePasswordRequired?.Invoke(this, args);
