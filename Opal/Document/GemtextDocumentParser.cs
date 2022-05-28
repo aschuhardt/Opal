@@ -7,13 +7,13 @@ namespace Opal.Document;
 /// </summary>
 public class GemtextDocumentParser : IGemtextDocumentParser
 {
-    private const string LinePrefixLink = "=> ";
+    private const string LinePrefixLink = "=>";
     private const string LinePrefixFormattedToggle = "```";
-    private const string LinePrefixHeading1 = "# ";
-    private const string LinePrefixHeading2 = "## ";
-    private const string LinePrefixHeading3 = "### ";
-    private const string LinePrefixList = "* ";
-    private const string LinePrefixQuote = "> ";
+    private const string LinePrefixHeading1 = "#";
+    private const string LinePrefixHeading2 = "##";
+    private const string LinePrefixHeading3 = "###";
+    private const string LinePrefixList = "*";
+    private const string LinePrefixQuote = ">";
     private readonly Uri _uri;
 
     public GemtextDocumentParser(Uri uri)
