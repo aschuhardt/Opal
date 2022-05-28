@@ -4,7 +4,7 @@
 A client library for the Gemini protocol written for .NET 6
 
 ## Features
-- Synchronous requests (async coming soon)
+- Asynchronous and Synchronous requests
 - Typed Gemtext document handling
 - Event-based user input
 - Configurable redirect behavior
