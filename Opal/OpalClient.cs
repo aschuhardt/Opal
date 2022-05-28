@@ -54,6 +54,20 @@ public class OpalClient : IOpalClient
         return SendUriRequest(new UriBuilder(uri) { Query = input }.Uri);
     }
 
+    public Task<IGeminiResponse> SendRequestAsync(string uri)
+    {
+        if (!uri.StartsWith(SchemePrefix, StringComparison.InvariantCultureIgnoreCase))
+            uri = SchemePrefix + uri;
+        return SendUriRequestAsync(new Uri(uri));
+    }
+
+    public Task<IGeminiResponse> SendRequestAsync(string uri, string input)
+    {
+        if (!uri.StartsWith(SchemePrefix, StringComparison.InvariantCultureIgnoreCase))
+            uri = SchemePrefix + uri;
+        return SendUriRequestAsync(new UriBuilder(uri) { Query = input }.Uri);
+    }
+
     public IEnumerable<IClientCertificate> Certificates => _authenticationDatabase.Certificates;
 
     public void RemoveCertificate(IClientCertificate certificate)
@@ -69,6 +83,129 @@ public class OpalClient : IOpalClient
     public event EventHandler<InputRequiredEventArgs> InputRequired;
     public event EventHandler<CertificateRequiredEventArgs> CertificateRequired;
     public event EventHandler<ConfirmRedirectEventArgs> ConfirmRedirect;
+
+    private async Task<IGeminiResponse> SendUriRequestAsync(Uri uri, bool allowRepeat = true, int depth = 1)
+    {
+        try
+        {
+            IGeminiResponse response;
+
+            await using (var stream = BuildSslStream(uri))
+            {
+                stream.ReadTimeout = Timeout;
+                stream.WriteTimeout = Timeout;
+
+                // authenticate
+                await stream.AuthenticateAsClientAsync(uri.Host,
+                    TryGetCertificateFromDatabase(uri.Host, out var cert) &&
+                    IsCertificateValid(cert, out var validated) &&
+                    CanSendCertificate(validated)
+                        ? new X509Certificate2Collection(cert.Certificate)
+                        : null, false);
+
+                // send the initial request
+                await SendRequestAsync(uri, stream);
+
+                // read the response from the server
+                response = await ReadResponseAsync(uri, stream);
+
+                // if successful, return immediately
+                if (response is SuccessfulResponse)
+                    return response;
+            }
+
+            return await ProcessNonSuccessResponseAsync(response, uri, allowRepeat, depth);
+        }
+        catch (SocketException e)
+        {
+            return new NetworkErrorResponse(uri, e);
+        }
+        catch (Exception e)
+        {
+            return new GeneralErrorResponse(uri, e);
+        }
+    }
+
+    private static async Task<IGeminiResponse> ReadResponseAsync(Uri uri, SslStream stream)
+    {
+        // read the entire response into a buffer
+        var body = new MemoryStream();
+        await stream.CopyToAsync(body);
+
+        // the first line will contain the header; if the status is 'success', then we will copy the rest of the buffer onto the response
+        body.Seek(0, SeekOrigin.Begin);
+
+        using var reader = new StreamReader(body, leaveOpen: true);
+        var header = GeminiHeader.Parse(await reader.ReadLineAsync());
+        return header == null 
+            ? new InvalidResponse(uri) 
+            : BuildResponse(uri, header, body);
+    }
+
+    private async Task<IGeminiResponse> ProcessNonSuccessResponseAsync(IGeminiResponse response, Uri uri, bool allowRepeat,
+        int depth)
+    {
+        if (response.IsInputRequired && allowRepeat && response is InputRequiredResponse inputResponse)
+        {
+            // prompt the caller to provide input, and re-send the request if any ways provided
+            var args = new InputRequiredEventArgs(inputResponse.Sensitive,
+                inputResponse.Message ?? "Input required");
+            InputRequired?.Invoke(this, args);
+            if (!string.IsNullOrEmpty(args.Value))
+            {
+                // caller provided input; re-send with the input
+                var updatedUri = new UriBuilder(uri) { Query = args.Value }.Uri;
+                return await SendUriRequestAsync(updatedUri, false);
+            }
+        }
+        else if (response.IsCertificateRequired && allowRepeat && response is ErrorResponse errorResponse)
+        {
+            // prompt the caller to provide a certificate
+            var args = new CertificateRequiredEventArgs(errorResponse.Message, uri.Host);
+            CertificateRequired?.Invoke(this, args);
+
+            if (args.Certificate == null)
+                return response;
+
+            // caller provided a cert; register it and re-send
+            _authenticationDatabase.Add(new ClientCertificate(args.Certificate, uri.Host,
+                args.Certificate.GetNameInfo(X509NameType.SimpleName, false)), args.Password);
+            return await SendUriRequestAsync(uri, false);
+        }
+        else if (response.IsRedirect && response is RedirectResponse redirectResponse)
+        {
+            if (_redirectBehavior == RedirectBehavior.Ignore)
+                return response;
+
+            if (depth >= MaxRedirectDepth)
+                return new ErrorResponse(uri, StatusCode.Unknown, "Too many redirects");
+
+            // prompt the caller to confirm redirection
+            var args = new ConfirmRedirectEventArgs(redirectResponse.RedirectTo, redirectResponse.IsPermanent);
+
+            var shouldFollow = true;
+            if (_redirectBehavior == RedirectBehavior.Confirm)
+            {
+                ConfirmRedirect?.Invoke(this, args);
+                shouldFollow = args.FollowRedirect;
+            }
+
+            if (shouldFollow)
+            {
+                var nextUri = new Uri(redirectResponse.RedirectTo, UriKind.RelativeOrAbsolute);
+
+                // redirects have to support relative URIs;
+                if (!nextUri.IsAbsoluteUri)
+                    nextUri = new UriBuilder(nextUri)
+                        { Scheme = uri.Scheme, Host = uri.Host, Port = uri.IsDefaultPort ? -1 : uri.Port }.Uri;
+
+                return await SendUriRequestAsync(nextUri, depth: depth + 1);
+            }
+        }
+
+        return response;
+
+    }
 
     private static byte[] ConvertToUtf8(string source)
     {
@@ -122,7 +259,6 @@ public class OpalClient : IOpalClient
         cert = null;
 
         for (var i = 0; i < DecryptPasswordAttempts; i++)
-        {
             // ReSharper disable once SwitchStatementHandlesSomeKnownEnumValuesWithDefault
             switch (_authenticationDatabase.TryGetCertificate(host, out cert))
             {
@@ -133,7 +269,6 @@ public class OpalClient : IOpalClient
                 default:
                     return false;
             }
-        }
 
         return false;
     }
@@ -231,6 +366,13 @@ public class OpalClient : IOpalClient
         return response.IsSuccess;
     }
 
+    private static async Task SendRequestAsync(Uri uri, SslStream stream)
+    {
+        await stream.WriteAsync(ConvertToUtf8(uri.ToString()));
+        await stream.WriteAsync(ConvertToUtf8("\r\n"));
+        await stream.FlushAsync();
+    }
+
     private static void SendRequest(Uri uri, SslStream stream)
     {
         stream.Write(ConvertToUtf8(uri.ToString()));
@@ -291,10 +433,8 @@ public class OpalClient : IOpalClient
 
                 // redirects have to support relative URIs;
                 if (!nextUri.IsAbsoluteUri)
-                {
                     nextUri = new UriBuilder(nextUri)
                         { Scheme = uri.Scheme, Host = uri.Host, Port = uri.IsDefaultPort ? -1 : uri.Port }.Uri;
-                }
 
                 return SendUriRequest(nextUri, depth: depth + 1);
             }
@@ -351,7 +491,7 @@ public class OpalClient : IOpalClient
     private static IAuthenticationDatabase CreateAuthenticationDatabase(OpalOptions options)
     {
         return options.UsePersistentAuthenticationDatabase
-            ? new PersistentAuthenticationDatabase()
+            ? new PersistentAuthenticationDatabase(null)
             : new InMemoryAuthenticationDatabase();
     }
 

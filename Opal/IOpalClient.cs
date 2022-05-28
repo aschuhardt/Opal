@@ -30,6 +30,20 @@ public interface IOpalClient
     /// <param name="input">A string of input data to include in the request</param>
     IGeminiResponse SendRequest(string uri, string input);
 
+    /// <inheritdoc cref="SendRequest(string)" />
+    /// <param name="uri">An absolute or relative Gemini URI</param>
+    /// <returns>
+    ///     A response object derived from <see cref="IGeminiResponse" /> representing the response received from the
+    ///     server, or an instance of <see cref="NetworkErrorResponse" /> if no response was received
+    /// </returns>
+    Task<IGeminiResponse> SendRequestAsync(string uri);
+
+    /// <inheritdoc cref="SendRequest(string)" />
+    /// <param name="uri">An absolute or relative Gemini URI</param>
+    /// <param name="input">A string of input data to include in the request</param>
+    Task<IGeminiResponse> SendRequestAsync(string uri, string input);
+
+
     /// <summary>
     ///     Raised when a certificate provided by a server is invalid, describing why it is invalid
     /// </summary>
