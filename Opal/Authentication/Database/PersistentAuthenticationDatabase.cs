@@ -197,10 +197,18 @@ public class PersistentAuthenticationDatabase : InMemoryAuthenticationDatabase
         }
     }
 
+    public override Task RemoveAsync(IClientCertificate certificate)
+    {
+        return RemoveAsync(certificate.Fingerprint);
+    }
+
     public override async Task RemoveAsync(string fingerprint)
     {
-        if (StoredCertificates.ContainsKey(fingerprint) && _persistenceInfo.ContainsKey(fingerprint))
+        if (!_persistenceInfo.ContainsKey(fingerprint))
+        {
+            await base.RemoveAsync(fingerprint);
             return;
+        }
 
         var path = _persistenceInfo[fingerprint].Path;
 
