@@ -1,10 +1,10 @@
 using Opal.Authentication.Certificate;
 
-namespace Opal.Event;
+namespace Opal.CallbackArgs;
 
-public class SendingClientCertificateEventArgs
+public class SendingClientCertificateArgs
 {
-    public SendingClientCertificateEventArgs(IClientCertificate certificate)
+    public SendingClientCertificateArgs(IClientCertificate certificate)
     {
         Certificate = certificate;
     }

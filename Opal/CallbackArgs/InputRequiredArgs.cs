@@ -1,8 +1,8 @@
-﻿namespace Opal.Event;
+﻿namespace Opal.CallbackArgs;
 
-public class InputRequiredEventArgs : EventArgs
+public class InputRequiredArgs
 {
-    internal InputRequiredEventArgs(bool isSensitive, string prompt)
+    internal InputRequiredArgs(bool isSensitive, string prompt)
     {
         IsSensitive = isSensitive;
         Prompt = prompt;

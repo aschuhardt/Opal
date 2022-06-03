@@ -1,10 +1,10 @@
 using Opal.Authentication.Certificate;
 
-namespace Opal.Event;
+namespace Opal.CallbackArgs;
 
-public class CertificateExpiredEventArgs
+public class CertificateExpiredArgs
 {
-    public CertificateExpiredEventArgs(IClientCertificate existing)
+    public CertificateExpiredArgs(IClientCertificate existing)
     {
         Existing = existing;
     }

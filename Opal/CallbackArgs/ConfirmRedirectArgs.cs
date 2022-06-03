@@ -1,8 +1,8 @@
-﻿namespace Opal.Event;
+﻿namespace Opal.CallbackArgs;
 
-public class ConfirmRedirectEventArgs : EventArgs
+public class ConfirmRedirectArgs
 {
-    public ConfirmRedirectEventArgs(string uri, bool isPermanent)
+    public ConfirmRedirectArgs(string uri, bool isPermanent)
     {
         Uri = uri;
         IsPermanent = isPermanent;

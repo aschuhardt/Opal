@@ -30,7 +30,7 @@ public static class CertificateHelper
         certRequest.CertificateExtensions.Add(
             new X509KeyUsageExtension(X509KeyUsageFlags.NonRepudiation | X509KeyUsageFlags.DigitalSignature, true));
 
-        var certificate = certRequest.CreateSelfSigned(DateTimeOffset.UtcNow, DateTimeOffset.Now + lifespan);
+        var certificate = certRequest.CreateSelfSigned(DateTimeOffset.UtcNow, DateTimeOffset.UtcNow + lifespan);
 
         return certificate;
     }
@@ -44,6 +44,6 @@ public static class CertificateHelper
         var certRequest = new CertificateRequest(certificate.SubjectName, key,
             HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
 
-        return certRequest.CreateSelfSigned(DateTimeOffset.UtcNow, DateTimeOffset.Now + lifespan);
+        return certRequest.CreateSelfSigned(DateTimeOffset.UtcNow, DateTimeOffset.UtcNow + lifespan);
     }
 }

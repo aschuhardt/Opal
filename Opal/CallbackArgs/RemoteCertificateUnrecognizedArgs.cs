@@ -1,8 +1,8 @@
-﻿namespace Opal.Event;
+﻿namespace Opal.CallbackArgs;
 
-public class RemoteCertificateUnrecognizedEventArgs : EventArgs
+public class RemoteCertificateUnrecognizedArgs
 {
-    internal RemoteCertificateUnrecognizedEventArgs(string host, string fingerprint)
+    internal RemoteCertificateUnrecognizedArgs(string host, string fingerprint)
     {
         Host = host;
         Fingerprint = fingerprint;

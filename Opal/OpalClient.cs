@@ -5,7 +5,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Opal.Authentication.Certificate;
 using Opal.Authentication.Database;
-using Opal.Event;
+using Opal.CallbackArgs;
 using Opal.Header;
 using Opal.Response;
 using Opal.Tofu;
@@ -19,11 +19,12 @@ public class OpalClient : IOpalClient
     private const int Timeout = 4000;
     private const string Scheme = "gemini";
     private const string SchemePrefix = $"{Scheme}://";
-    private const int DecryptPasswordAttempts = 5;
-
-    private readonly IAuthenticationDatabase _authenticationDatabase;
-    private readonly ICertificateDatabase _certificateDatabase;
     private readonly RedirectBehavior _redirectBehavior;
+
+    public OpalClient() : this(new DummyCertificateDatabase(), new InMemoryAuthenticationDatabase(),
+        RedirectBehavior.Follow)
+    {
+    }
 
     public OpalClient(ICertificateDatabase certificateDatabase, IAuthenticationDatabase authenticationDatabase,
         RedirectBehavior redirectBehavior)
@@ -32,27 +33,21 @@ public class OpalClient : IOpalClient
             new GenericUriParser(GenericUriParserOptions.NoFragment | GenericUriParserOptions.Default),
             Scheme, DefaultPort);
 
-        _certificateDatabase = certificateDatabase;
-        _authenticationDatabase = authenticationDatabase;
+        CertificateDatabase = certificateDatabase;
+        AuthenticationDatabase = authenticationDatabase;
         _redirectBehavior = redirectBehavior;
-
-        _authenticationDatabase.CertificatePasswordRequired +=
-            (sender, args) => CertificatePasswordRequired?.Invoke(sender, args);
     }
 
-    public IGeminiResponse SendRequest(string uri)
-    {
-        if (!uri.StartsWith(SchemePrefix, StringComparison.InvariantCultureIgnoreCase))
-            uri = SchemePrefix + uri;
-        return SendUriRequest(new Uri(uri));
-    }
+    public IAuthenticationDatabase AuthenticationDatabase { get; }
+    public ICertificateDatabase CertificateDatabase { get; }
 
-    public IGeminiResponse SendRequest(string uri, string input)
-    {
-        if (!uri.StartsWith(SchemePrefix, StringComparison.InvariantCultureIgnoreCase))
-            uri = SchemePrefix + uri;
-        return SendUriRequest(new UriBuilder(uri) { Query = input }.Uri);
-    }
+    public Func<Task<IClientCertificate>> GetActiveCertificateCallback { get; set; }
+    public Func<CertificateExpiredArgs, Task> CertificateExpiredCallback { get; set; }
+    public Func<ConfirmRedirectArgs, Task> ConfirmRedirectCallback { get; set; }
+    public Func<InputRequiredArgs, Task> InputRequiredCallback { get; set; }
+    public Func<SendingClientCertificateArgs, Task> SendingClientCertificateCallback { get; set; }
+    public Func<RemoteCertificateInvalidArgs, Task> RemoteCertificateInvalidCallback { get; set; }
+    public Func<RemoteCertificateUnrecognizedArgs, Task> RemoteCertificateUnrecognizedCallback { get; set; }
 
     public Task<IGeminiResponse> SendRequestAsync(string uri)
     {
@@ -68,38 +63,27 @@ public class OpalClient : IOpalClient
         return SendUriRequestAsync(new UriBuilder(uri) { Query = input }.Uri);
     }
 
-    public IEnumerable<IClientCertificate> Certificates => _authenticationDatabase.Certificates;
-
-    public void RemoveCertificate(IClientCertificate certificate)
-    {
-        _authenticationDatabase.Remove(certificate);
-    }
-
-    public event EventHandler<RemoteCertificateInvalidEventArgs> RemoteCertificateInvalid;
-    public event EventHandler<RemoteCertificateUnrecognizedEventArgs> RemoteCertificateUnrecognized;
-    public event EventHandler<CertificatePasswordRequiredEventArgs> CertificatePasswordRequired;
-    public event EventHandler<SendingClientCertificateEventArgs> SendingClientCertificate;
-    public event EventHandler<CertificateExpiredEventArgs> CertificateExpired;
-    public event EventHandler<InputRequiredEventArgs> InputRequired;
-    public event EventHandler<CertificateRequiredEventArgs> CertificateRequired;
-    public event EventHandler<ConfirmRedirectEventArgs> ConfirmRedirect;
-
     private async Task<IGeminiResponse> SendUriRequestAsync(Uri uri, bool allowRepeat = true, int depth = 1)
     {
         try
         {
             IGeminiResponse response;
 
-            await using (var stream = BuildSslStream(uri))
+            await using (var stream = BuildSslStream(uri, CertificateValidationCallback))
             {
                 stream.ReadTimeout = Timeout;
                 stream.WriteTimeout = Timeout;
 
+                IClientCertificate cert = null;
+
+                if (GetActiveCertificateCallback != null)
+                    cert = await GetActiveCertificateCallback();
+
                 // authenticate
                 await stream.AuthenticateAsClientAsync(uri.Host,
-                    TryGetCertificateFromDatabase(uri.Host, out var cert) &&
-                    IsCertificateValid(cert, out var validated) &&
-                    CanSendCertificate(validated)
+                    cert != null &&
+                    await IsCertificateValidAsync(cert) &&
+                    await CanSendCertificateAsync(cert)
                         ? new X509Certificate2Collection(cert.Certificate)
                         : null, false);
 
@@ -126,6 +110,12 @@ public class OpalClient : IOpalClient
         }
     }
 
+    private bool CertificateValidationCallback(Uri uri, X509Certificate cert)
+    {
+        // "thread pool hack" from https://docs.microsoft.com/en-us/archive/msdn-magazine/2015/july/async-programming-brownfield-async-development
+        return Task.Run(() => ValidateCertificate(uri, cert)).GetAwaiter().GetResult();
+    }
+
     private static async Task<IGeminiResponse> ReadResponseAsync(Uri uri, SslStream stream)
     {
         // read the entire response into a buffer
@@ -137,40 +127,28 @@ public class OpalClient : IOpalClient
 
         using var reader = new StreamReader(body, leaveOpen: true);
         var header = GeminiHeader.Parse(await reader.ReadLineAsync());
-        return header == null 
-            ? new InvalidResponse(uri) 
+        return header == null
+            ? new InvalidResponse(uri)
             : BuildResponse(uri, header, body);
     }
 
-    private async Task<IGeminiResponse> ProcessNonSuccessResponseAsync(IGeminiResponse response, Uri uri, bool allowRepeat,
+    private async Task<IGeminiResponse> ProcessNonSuccessResponseAsync(IGeminiResponse response, Uri uri,
+        bool allowRepeat,
         int depth)
     {
         if (response.IsInputRequired && allowRepeat && response is InputRequiredResponse inputResponse)
         {
             // prompt the caller to provide input, and re-send the request if any ways provided
-            var args = new InputRequiredEventArgs(inputResponse.Sensitive,
+            var args = new InputRequiredArgs(inputResponse.Sensitive,
                 inputResponse.Message ?? "Input required");
-            InputRequired?.Invoke(this, args);
+            if (InputRequiredCallback != null)
+                await InputRequiredCallback(args);
             if (!string.IsNullOrEmpty(args.Value))
             {
                 // caller provided input; re-send with the input
                 var updatedUri = new UriBuilder(uri) { Query = args.Value }.Uri;
                 return await SendUriRequestAsync(updatedUri, false);
             }
-        }
-        else if (response.IsCertificateRequired && allowRepeat && response is ErrorResponse errorResponse)
-        {
-            // prompt the caller to provide a certificate
-            var args = new CertificateRequiredEventArgs(errorResponse.Message, uri.Host);
-            CertificateRequired?.Invoke(this, args);
-
-            if (args.Certificate == null)
-                return response;
-
-            // caller provided a cert; register it and re-send
-            _authenticationDatabase.Add(new ClientCertificate(args.Certificate, uri.Host,
-                args.Certificate.GetNameInfo(X509NameType.SimpleName, false)), args.Password);
-            return await SendUriRequestAsync(uri, false);
         }
         else if (response.IsRedirect && response is RedirectResponse redirectResponse)
         {
@@ -181,12 +159,12 @@ public class OpalClient : IOpalClient
                 return new ErrorResponse(uri, StatusCode.Unknown, "Too many redirects");
 
             // prompt the caller to confirm redirection
-            var args = new ConfirmRedirectEventArgs(redirectResponse.RedirectTo, redirectResponse.IsPermanent);
+            var args = new ConfirmRedirectArgs(redirectResponse.RedirectTo, redirectResponse.IsPermanent);
 
             var shouldFollow = true;
-            if (_redirectBehavior == RedirectBehavior.Confirm)
+            if (_redirectBehavior == RedirectBehavior.Confirm && ConfirmRedirectCallback != null)
             {
-                ConfirmRedirect?.Invoke(this, args);
+                await ConfirmRedirectCallback(args);
                 shouldFollow = args.FollowRedirect;
             }
 
@@ -204,7 +182,6 @@ public class OpalClient : IOpalClient
         }
 
         return response;
-
     }
 
     private static byte[] ConvertToUtf8(string source)
@@ -254,116 +231,40 @@ public class OpalClient : IOpalClient
         };
     }
 
-    private bool TryGetCertificateFromDatabase(string host, out IClientCertificate cert)
-    {
-        cert = null;
-
-        for (var i = 0; i < DecryptPasswordAttempts; i++)
-            // ReSharper disable once SwitchStatementHandlesSomeKnownEnumValuesWithDefault
-            switch (_authenticationDatabase.TryGetCertificate(host, out cert))
-            {
-                case CertificateResult.Success:
-                    return true;
-                case CertificateResult.DecryptionFailure:
-                    continue;
-                default:
-                    return false;
-            }
-
-        return false;
-    }
-
-    private bool IsCertificateValid(IClientCertificate cert, out IClientCertificate validated)
+    private async Task<bool> IsCertificateValidAsync(IClientCertificate cert)
     {
         if (DateTime.Now > cert.Certificate.NotAfter)
         {
             // certificate has expired; present the caller with the opportunity to renew it
-            var args = new CertificateExpiredEventArgs(cert);
-            CertificateExpired?.Invoke(this, args);
-
-            if (args.Replacement != null)
+            if (CertificateExpiredCallback != null)
             {
-                validated = args.Replacement;
-                _authenticationDatabase.Remove(cert);
-                _authenticationDatabase.Add(validated, args.Password);
-                return true;
+                var args = new CertificateExpiredArgs(cert);
+                await CertificateExpiredCallback(args);
+
+                if (args.Replacement != null)
+                {
+                    await AuthenticationDatabase.RemoveAsync(cert);
+                    cert.Certificate = args.Replacement.Certificate;
+                    await AuthenticationDatabase.AddAsync(cert, args.Password);
+                    return true;
+                }
             }
 
-            validated = null;
             return false;
         }
 
-        validated = cert;
         return true;
     }
 
-    private bool CanSendCertificate(IClientCertificate cert)
+    private async Task<bool> CanSendCertificateAsync(IClientCertificate cert)
     {
-        var args = new SendingClientCertificateEventArgs(cert);
-        SendingClientCertificate?.Invoke(this, args);
+        if (SendingClientCertificateCallback == null)
+            return true;
+
+        var args = new SendingClientCertificateArgs(cert);
+        await SendingClientCertificateCallback(args);
+
         return !args.Cancel;
-    }
-
-    private IGeminiResponse SendUriRequest(Uri uri, bool allowRepeat = true, int depth = 1)
-    {
-        try
-        {
-            IGeminiResponse response;
-
-            using (var stream = BuildSslStream(uri))
-            {
-                stream.ReadTimeout = Timeout;
-                stream.WriteTimeout = Timeout;
-
-                // authenticate
-                stream.AuthenticateAsClient(uri.Host,
-                    TryGetCertificateFromDatabase(uri.Host, out var cert) &&
-                    IsCertificateValid(cert, out var validated) &&
-                    CanSendCertificate(validated)
-                        ? new X509Certificate2Collection(cert.Certificate)
-                        : null, false);
-
-                // send the initial request
-                SendRequest(uri, stream);
-
-                // read the response from the server
-                if (TryReadResponse(uri, stream, out response))
-                    return response;
-            }
-
-            return ProcessNonSuccessResponse(response, uri, allowRepeat, depth);
-        }
-        catch (SocketException e)
-        {
-            return new NetworkErrorResponse(uri, e);
-        }
-        catch (Exception e)
-        {
-            return new GeneralErrorResponse(uri, e);
-        }
-    }
-
-    private static bool TryReadResponse(Uri uri, Stream stream, out IGeminiResponse response)
-    {
-        // read the entire response into a buffer
-        var body = new MemoryStream();
-        stream.CopyTo(body);
-
-        // the first line will contain the header; if the status is 'success', then we will copy the rest of the buffer onto the response
-        body.Seek(0, SeekOrigin.Begin);
-        using (var reader = new StreamReader(body, leaveOpen: true))
-        {
-            var header = GeminiHeader.Parse(reader.ReadLine());
-            if (header == null)
-            {
-                response = new InvalidResponse(uri);
-                return false;
-            }
-
-            response = BuildResponse(uri, header, body);
-        }
-
-        return response.IsSuccess;
     }
 
     private static async Task SendRequestAsync(Uri uri, SslStream stream)
@@ -373,138 +274,37 @@ public class OpalClient : IOpalClient
         await stream.FlushAsync();
     }
 
-    private static void SendRequest(Uri uri, SslStream stream)
-    {
-        stream.Write(ConvertToUtf8(uri.ToString()));
-        stream.Write(ConvertToUtf8("\r\n"));
-        stream.Flush();
-    }
-
-    private IGeminiResponse ProcessNonSuccessResponse(IGeminiResponse response, Uri uri, bool allowRepeat, int depth)
-    {
-        if (response.IsInputRequired && allowRepeat && response is InputRequiredResponse inputResponse)
-        {
-            // prompt the caller to provide input, and re-send the request if any ways provided
-            var args = new InputRequiredEventArgs(inputResponse.Sensitive,
-                inputResponse.Message ?? "Input required");
-            InputRequired?.Invoke(this, args);
-            if (!string.IsNullOrEmpty(args.Value))
-            {
-                // caller provided input; re-send with the input
-                var updatedUri = new UriBuilder(uri) { Query = args.Value }.Uri;
-                return SendUriRequest(updatedUri, false);
-            }
-        }
-        else if (response.IsCertificateRequired && allowRepeat && response is ErrorResponse errorResponse)
-        {
-            // prompt the caller to provide a certificate
-            var args = new CertificateRequiredEventArgs(errorResponse.Message, uri.Host);
-            CertificateRequired?.Invoke(this, args);
-
-            if (args.Certificate == null)
-                return response;
-
-            // caller provided a cert; register it and re-send
-            _authenticationDatabase.Add(new ClientCertificate(args.Certificate, uri.Host,
-                args.Certificate.GetNameInfo(X509NameType.SimpleName, false)), args.Password);
-            return SendUriRequest(uri, false);
-        }
-        else if (response.IsRedirect && response is RedirectResponse redirectResponse)
-        {
-            if (_redirectBehavior == RedirectBehavior.Ignore)
-                return response;
-
-            if (depth >= MaxRedirectDepth)
-                return new ErrorResponse(uri, StatusCode.Unknown, "Too many redirects");
-
-            // prompt the caller to confirm redirection
-            var args = new ConfirmRedirectEventArgs(redirectResponse.RedirectTo, redirectResponse.IsPermanent);
-
-            var shouldFollow = true;
-            if (_redirectBehavior == RedirectBehavior.Confirm)
-            {
-                ConfirmRedirect?.Invoke(this, args);
-                shouldFollow = args.FollowRedirect;
-            }
-
-            if (shouldFollow)
-            {
-                var nextUri = new Uri(redirectResponse.RedirectTo, UriKind.RelativeOrAbsolute);
-
-                // redirects have to support relative URIs;
-                if (!nextUri.IsAbsoluteUri)
-                    nextUri = new UriBuilder(nextUri)
-                        { Scheme = uri.Scheme, Host = uri.Host, Port = uri.IsDefaultPort ? -1 : uri.Port }.Uri;
-
-                return SendUriRequest(nextUri, depth: depth + 1);
-            }
-        }
-
-        return response;
-    }
-
-    private SslStream BuildSslStream(Uri uri)
+    private static SslStream BuildSslStream(Uri uri, Func<Uri, X509Certificate, bool> validation)
     {
         var tcpClient = new TcpClient(uri.Host, uri.IsDefaultPort ? DefaultPort : uri.Port);
         return new SslStream(tcpClient.GetStream(), false,
-            (_, cert, _, _) => ValidateCertificate(uri, cert),
+            (_, cert, _, _) => validation(uri, cert),
             null, EncryptionPolicy.RequireEncryption);
     }
 
-    private bool ValidateCertificate(Uri uri, X509Certificate certificate)
+    private async Task<bool> ValidateCertificate(Uri uri, X509Certificate certificate)
     {
-        if (_certificateDatabase.IsCertificateValid(uri.Host, certificate, out var result))
+        if (CertificateDatabase.IsCertificateValid(uri.Host, certificate, out var result))
             return true;
 
-        if (result == InvalidCertificateReason.TrustedMismatch)
+        if (result == InvalidCertificateReason.TrustedMismatch && RemoteCertificateInvalidCallback != null)
         {
-            var args = new RemoteCertificateUnrecognizedEventArgs(uri.Host,
+            var args = new RemoteCertificateUnrecognizedArgs(uri.Host,
                 certificate.GetCertHashString(HashAlgorithmName.SHA256));
-            RemoteCertificateUnrecognized?.Invoke(this, args);
+            await RemoteCertificateUnrecognizedCallback(args);
 
             if (!args.AcceptAndTrust)
                 return false;
 
             // user opted to accept this certificate in place of the previously-recognized one,
             // so update the cache and re-validate
-            _certificateDatabase.RemoveTrusted(uri.Host);
-            return ValidateCertificate(uri, certificate);
+            CertificateDatabase.RemoveTrusted(uri.Host);
+            return await ValidateCertificate(uri, certificate);
         }
 
-        RemoteCertificateInvalid?.Invoke(this, new RemoteCertificateInvalidEventArgs(uri.Host, result));
+        if (RemoteCertificateInvalidCallback != null)
+            await RemoteCertificateInvalidCallback(new RemoteCertificateInvalidArgs(uri.Host, result));
+
         return false;
-    }
-
-    /// <summary>
-    ///     Returns a new instance of <see cref="OpalClient" /> with the provided configuration options.  For a secure default
-    ///     configuration, pass <see cref="OpalOptions.Default" />.
-    /// </summary>
-    public static IOpalClient CreateNew(OpalOptions options)
-    {
-        // use default dependencies
-        return new OpalClient(
-            CreateCertificateDatabase(options),
-            CreateAuthenticationDatabase(options),
-            options.RedirectBehavior);
-    }
-
-    private static IAuthenticationDatabase CreateAuthenticationDatabase(OpalOptions options)
-    {
-        return options.UsePersistentAuthenticationDatabase
-            ? new PersistentAuthenticationDatabase(null)
-            : new InMemoryAuthenticationDatabase();
-    }
-
-    private static ICertificateDatabase CreateCertificateDatabase(OpalOptions options)
-    {
-        ICertificateDatabase certDatabase;
-        if (!options.VerifyCertificates)
-            certDatabase = new DummyCertificateDatabase();
-        else if (options.UsePersistentCertificateDatabase)
-            certDatabase = new PersistentCertificateDatabase();
-        else
-            certDatabase = new InMemoryCertificateDatabase();
-
-        return certDatabase;
     }
 }

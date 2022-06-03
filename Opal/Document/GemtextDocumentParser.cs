@@ -49,10 +49,14 @@ public class GemtextDocumentParser : IGemtextDocumentParser
                 ref formatted, text => new FormattedBeginLine(text)),
             _ when line.StartsWith(LinePrefixFormattedToggle) && formatted => ParsePrefixLineAndToggle(line,
                 ref formatted, _ => new FormattedEndLine()),
-            _ when line.StartsWith(LinePrefixHeading3) => ParsePrefixLine(line, LinePrefixHeading3, text => new HeadingLine(text, 3)),
-            _ when line.StartsWith(LinePrefixHeading2) => ParsePrefixLine(line, LinePrefixHeading2, text => new HeadingLine(text, 2)),
-            _ when line.StartsWith(LinePrefixHeading1) => ParsePrefixLine(line,LinePrefixHeading1, text => new HeadingLine(text, 1)),
-            _ when line.StartsWith(LinePrefixQuote) => ParsePrefixLine(line, LinePrefixQuote, text => new QuoteLine(text)),
+            _ when line.StartsWith(LinePrefixHeading3) => ParsePrefixLine(line, LinePrefixHeading3,
+                text => new HeadingLine(text, 3)),
+            _ when line.StartsWith(LinePrefixHeading2) => ParsePrefixLine(line, LinePrefixHeading2,
+                text => new HeadingLine(text, 2)),
+            _ when line.StartsWith(LinePrefixHeading1) => ParsePrefixLine(line, LinePrefixHeading1,
+                text => new HeadingLine(text, 1)),
+            _ when line.StartsWith(LinePrefixQuote) => ParsePrefixLine(line, LinePrefixQuote,
+                text => new QuoteLine(text)),
             _ when line.StartsWith(LinePrefixList) => ParsePrefixLine(line, LinePrefixList, text => new ListLine(text)),
             _ when string.IsNullOrWhiteSpace(line) => new EmptyLine(),
             _ => new TextLine(line)
@@ -81,7 +85,8 @@ public class GemtextDocumentParser : IGemtextDocumentParser
         if (string.IsNullOrWhiteSpace(trimmedAfterPrefix))
             return new TextLine(line);
 
-        var parts = trimmedAfterPrefix.Split(' ', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        var parts = trimmedAfterPrefix.Split(' ', 2,
+            StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
         // contains alt-text
         if (!Uri.TryCreate(parts[0], UriKind.RelativeOrAbsolute, out var parsed))
@@ -97,9 +102,8 @@ public class GemtextDocumentParser : IGemtextDocumentParser
             {
                 Host = _uri.Host, Scheme = _uri.Scheme, Port = _uri.IsDefaultPort ? -1 : _uri.Port,
                 Path = pathParts[0],
-                Query = pathParts.Length > 1 ? pathParts[1] : string.Empty 
+                Query = pathParts.Length > 1 ? pathParts[1] : string.Empty
             }.Uri;
-
         }
 
         return new LinkLine(parts.Length > 1 ? parts[1] : null, parsed);

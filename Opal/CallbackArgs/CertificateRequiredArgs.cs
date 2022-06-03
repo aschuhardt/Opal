@@ -1,10 +1,10 @@
 ﻿using System.Security.Cryptography.X509Certificates;
 
-namespace Opal.Event;
+namespace Opal.CallbackArgs;
 
-public class CertificateRequiredEventArgs : EventArgs
+public class CertificateRequiredArgs
 {
-    internal CertificateRequiredEventArgs(string message, string host)
+    internal CertificateRequiredArgs(string message, string host)
     {
         Message = message;
         Host = host;

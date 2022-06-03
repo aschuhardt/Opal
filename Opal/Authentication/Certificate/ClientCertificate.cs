@@ -3,25 +3,23 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace Opal.Authentication.Certificate;
 
-internal class ClientCertificate : IClientCertificate
+public class ClientCertificate : IClientCertificate
 {
-    private readonly X509Certificate2 _certificate;
-
-    public ClientCertificate(X509Certificate2 certificate, string host, string name)
+    public ClientCertificate(X509Certificate2 certificate)
     {
-        _certificate = certificate;
-        Host = host;
-        Name = name;
+        ((IClientCertificate)this).Certificate = certificate;
+        Subject = certificate.Subject;
+        Expiration = certificate.NotAfter;
     }
 
-    X509Certificate2 IClientCertificate.Certificate => _certificate;
+    X509Certificate2 IClientCertificate.Certificate { get; set; }
 
-    public string Host { get; }
-    public string Name { get; }
-    public string Fingerprint => _certificate.GetCertHashString(HashAlgorithmName.SHA256);
+    public string Fingerprint => ((IClientCertificate)this).Certificate.GetCertHashString(HashAlgorithmName.SHA256);
+    public string Subject { get; }
+    public DateTime Expiration { get; }
 
     public IClientCertificate Renew(TimeSpan lifespan)
     {
-        return new ClientCertificate(CertificateHelper.Renew(lifespan, _certificate), Host, Name);
+        return new ClientCertificate(CertificateHelper.Renew(lifespan, ((IClientCertificate)this).Certificate));
     }
 }

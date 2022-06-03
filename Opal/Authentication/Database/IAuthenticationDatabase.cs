@@ -1,14 +1,16 @@
-﻿using Opal.Authentication.Certificate;
-using Opal.Event;
+﻿using System.Security.Cryptography.X509Certificates;
+using Opal.Authentication.Certificate;
 
 namespace Opal.Authentication.Database;
 
 public interface IAuthenticationDatabase
 {
-    IEnumerable<IClientCertificate> Certificates { get; }
-    CertificateResult TryGetCertificate(string host, out IClientCertificate certificate);
-    void Add(IClientCertificate certificate, string password);
-    void Remove(string host);
-    void Remove(IClientCertificate certificate);
-    event EventHandler<CertificatePasswordRequiredEventArgs> CertificatePasswordRequired;
+    IAsyncEnumerable<IClientCertificate> CertificatesAsync { get; }
+    public Func<string, Task<string>> PasswordEntryCallback { get; set; }
+    public Func<string, Task> CertificateFailureCallback { get; set; }
+    Task<IClientCertificate> TryGetCertificateAsync(string fingerprint);
+    Task AddAsync(IClientCertificate certificate, string password);
+    Task RemoveAsync(string fingerprint);
+    Task RemoveAsync(IClientCertificate certificate);
+    Task AddAsync(X509Certificate2 certificate, string password);
 }

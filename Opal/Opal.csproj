@@ -9,7 +9,7 @@
       <RepositoryUrl>https://github.com/aschuhardt/Opal</RepositoryUrl>
       <PackageTags>gemini;gemini-protocol;client;smolnet</PackageTags>
       <PackageLicenseExpression>MIT</PackageLicenseExpression>
-      <PackageVersion>1.0.4</PackageVersion>
+      <PackageVersion>1.1.0</PackageVersion>
   </PropertyGroup>
 
   <ItemGroup>
