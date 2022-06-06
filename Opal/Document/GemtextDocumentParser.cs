@@ -1,4 +1,5 @@
-﻿using Opal.Document.Line;
+﻿using System.Text;
+using Opal.Document.Line;
 
 namespace Opal.Document;
 
@@ -92,20 +93,44 @@ public class GemtextDocumentParser : IGemtextDocumentParser
         if (!Uri.TryCreate(parts[0], UriKind.RelativeOrAbsolute, out var parsed))
             return new TextLine(line.Trim());
 
-
         if (!parsed.IsAbsoluteUri)
         {
             var pathParts = parts[0].Split('?', 2,
                 StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
+
+            var linePath = pathParts[0];
             parsed = new UriBuilder
             {
                 Host = _uri.Host, Scheme = _uri.Scheme, Port = _uri.IsDefaultPort ? -1 : _uri.Port,
-                Path = pathParts[0],
+                Path = BuildRelativePath(linePath, _uri),
                 Query = pathParts.Length > 1 ? pathParts[1] : string.Empty
             }.Uri;
         }
 
         return new LinkLine(parts.Length > 1 ? parts[1] : null, parsed);
+    }
+
+    private static string BuildRelativePath(string pagePath, Uri baseUri)
+    {
+        if (pagePath.StartsWith('/'))
+            return pagePath; // absolute uri
+
+        var path = new StringBuilder();
+
+        for (var i = 0; i < baseUri.Segments.Length; i++)
+        {
+            var segment = baseUri.Segments[i];
+
+            // if this is the last segment and it looks like a file, skip it
+            if (i == baseUri.Segments.Length - 1 && segment.Contains('.'))
+                break;
+
+            path.Append(segment);
+        }
+
+        path.Append(pagePath);
+
+        return path.ToString();
     }
 }
