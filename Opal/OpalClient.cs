@@ -29,9 +29,12 @@ public class OpalClient : IOpalClient
     public OpalClient(ICertificateDatabase certificateDatabase, IAuthenticationDatabase authenticationDatabase,
         RedirectBehavior redirectBehavior)
     {
-        UriParser.Register(
-            new GenericUriParser(GenericUriParserOptions.NoFragment | GenericUriParserOptions.Default),
-            Scheme, DefaultPort);
+        if (!UriParser.IsKnownScheme("gemini"))
+        {
+            UriParser.Register(
+                new GenericUriParser(GenericUriParserOptions.NoFragment | GenericUriParserOptions.Default),
+                Scheme, DefaultPort);
+        }
 
         CertificateDatabase = certificateDatabase;
         AuthenticationDatabase = authenticationDatabase;
