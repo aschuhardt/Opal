@@ -17,6 +17,8 @@ public class GemtextDocumentParser : IGemtextDocumentParser
     private const string LinePrefixQuote = ">";
     private readonly Uri _uri;
 
+    private static readonly char[] WhitespaceChars = { ' ', '\t' };
+
     public GemtextDocumentParser(Uri uri)
     {
         _uri = uri;
@@ -64,11 +66,22 @@ public class GemtextDocumentParser : IGemtextDocumentParser
         };
     }
 
+    private static bool ContainsWhitespace(string value)
+    {
+        foreach (var c in WhitespaceChars)
+        {
+            if (value.Contains(c))
+                return true;
+        }
+
+        return false;
+    }
+
     private static ILine ParsePrefixLineAndToggle<T>(string line, ref bool flag, Func<string, T> create) where T : ILine
     {
         flag = !flag;
-        return line.Contains(' ')
-            ? create(line[line.IndexOf(' ')..].Trim())
+        return ContainsWhitespace(line)
+            ? create(line[line.IndexOfAny(WhitespaceChars)..].Trim())
             : create(null);
     }
 
@@ -86,7 +99,7 @@ public class GemtextDocumentParser : IGemtextDocumentParser
         if (string.IsNullOrWhiteSpace(trimmedAfterPrefix))
             return new TextLine(line);
 
-        var parts = trimmedAfterPrefix.Split(' ', 2,
+        var parts = trimmedAfterPrefix.Split(WhitespaceChars, 2,
             StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
         // contains alt-text
