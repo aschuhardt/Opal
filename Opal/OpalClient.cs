@@ -176,9 +176,10 @@ public class OpalClient : IOpalClient
                 var nextUri = new Uri(redirectResponse.RedirectTo, UriKind.RelativeOrAbsolute);
 
                 // redirects have to support relative URIs;
-                if (!nextUri.IsAbsoluteUri)
-                    nextUri = new UriBuilder(nextUri)
-                        { Scheme = uri.Scheme, Host = uri.Host, Port = uri.IsDefaultPort ? -1 : uri.Port }.Uri;
+                if (!nextUri.IsAbsoluteUri && !Uri.TryCreate(uri, redirectResponse.RedirectTo, out nextUri))
+                {
+                    return new ErrorResponse(uri, StatusCode.Unknown, "Invalid redirect URI");
+                }
 
                 return await SendUriRequestAsync(nextUri, depth: depth + 1);
             }
