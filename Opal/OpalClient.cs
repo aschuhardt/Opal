@@ -249,7 +249,7 @@ public class OpalClient : IOpalClient
                 {
                     await AuthenticationDatabase.RemoveAsync(cert);
                     cert.Certificate = args.Replacement.Certificate;
-                    await AuthenticationDatabase.AddAsync(cert, args.Password);
+                    await AuthenticationDatabase.AddAsync(cert);
                     return true;
                 }
             }
