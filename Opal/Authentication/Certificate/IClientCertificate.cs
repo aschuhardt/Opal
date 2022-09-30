@@ -4,7 +4,7 @@ namespace Opal.Authentication.Certificate;
 
 public interface IClientCertificate
 {
-    internal X509Certificate2 Certificate { get; set; }
+    public X509Certificate2 Certificate { get; internal set; }
     string Fingerprint { get; }
     public string Subject { get; }
     DateTime Expiration { get; }
