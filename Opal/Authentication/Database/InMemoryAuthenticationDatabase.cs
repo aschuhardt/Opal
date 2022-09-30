@@ -25,12 +25,12 @@ public class InMemoryAuthenticationDatabase : IAuthenticationDatabase
             : Task.FromResult<IClientCertificate>(null);
     }
 
-    public virtual Task AddAsync(X509Certificate2 certificate, string password)
+    public virtual Task AddAsync(X509Certificate2 certificate)
     {
-        return AddAsync(new ClientCertificate(certificate), password);
+        return AddAsync(new ClientCertificate(certificate));
     }
 
-    public virtual Task AddAsync(IClientCertificate certificate, string password)
+    public virtual Task AddAsync(IClientCertificate certificate)
     {
         StoredCertificates[certificate.Fingerprint] = certificate;
         return Task.CompletedTask;
