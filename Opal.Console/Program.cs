@@ -22,11 +22,7 @@ Task LogCertificateFailure(string msg)
 
 Task.Run(async () =>
 {
-    var authDb = await PersistentAuthenticationDatabase.CreateAsync(Environment.CurrentDirectory);
-    authDb.PasswordEntryCallback = PromptForPassword;
-    authDb.CertificateFailureCallback = LogCertificateFailure;
-
-    var client = new OpalClient(new DummyCertificateDatabase(), authDb, RedirectBehavior.Follow);
+    var client = new OpalClient();
 
     while (true)
     {
