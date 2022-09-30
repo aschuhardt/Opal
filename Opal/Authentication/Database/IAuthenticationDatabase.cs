@@ -9,8 +9,8 @@ public interface IAuthenticationDatabase
     public Func<string, Task<string>> PasswordEntryCallback { get; set; }
     public Func<string, Task> CertificateFailureCallback { get; set; }
     Task<IClientCertificate> TryGetCertificateAsync(string fingerprint);
-    Task AddAsync(IClientCertificate certificate, string password);
+    Task AddAsync(IClientCertificate certificate);
     Task RemoveAsync(string fingerprint);
     Task RemoveAsync(IClientCertificate certificate);
-    Task AddAsync(X509Certificate2 certificate, string password);
+    Task AddAsync(X509Certificate2 certificate);
 }
