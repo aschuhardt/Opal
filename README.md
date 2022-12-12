@@ -1,7 +1,7 @@
 ![Opal on Nuget](https://img.shields.io/nuget/v/Opal) ![Opal build](https://img.shields.io/github/workflow/status/aschuhardt/Opal/.NET) ![Last commit](https://img.shields.io/github/last-commit/aschuhardt/Opal) ![MIT](https://img.shields.io/github/license/aschuhardt/Opal)
 
 # Opal
-A client library for the Gemini protocol written for .NET 6
+A client library for the Gemini protocol written for .NET 7
 
 ## Features
 - Asynchronous requests
@@ -16,7 +16,7 @@ A client library for the Gemini protocol written for .NET 6
 Install the Nuget package
 
 ```
-Install-Package Opal -Version 1.2.0
+Install-Package Opal -Version 1.3.0
 ```
 
 Create an instance of a client and make requests
