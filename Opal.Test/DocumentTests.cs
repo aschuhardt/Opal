@@ -134,7 +134,7 @@ internal class DocumentTests
     public void DocumentParser_ParsesRelativeLinkLinesCorrectly(string line, string expectedText,
         string? expectedPath, string? expectedQuery)
     {
-        var withLineEnding = new StringBuilder(line, line.Length + 1).AppendLine();
+        var withLineEnding = new StringBuilder(line).AppendLine();
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(withLineEnding.ToString()));
         if (_parser.ParseDocument(stream).Single() is not LinkLine linkLine) 
             throw new ArgumentException();
@@ -148,5 +148,19 @@ internal class DocumentTests
         Assert.AreEqual(_localhost.IsDefaultPort, uri.IsDefaultPort);
         Assert.AreEqual(expectedPath ?? string.Empty, uri.AbsolutePath);
         Assert.AreEqual(expectedQuery ?? string.Empty, uri.Query);
+    }
+
+    [TestCase("=> //example.com", "example.com", "/")]
+    [TestCase("=> //example.com/file.txt", "example.com", "/file.txt")]
+    public void DocumentParser_ParsesProtocolRelativeUrlsCorrectly(string line, string expectedHost, string expectedPath)
+    {
+        var withLineEnding = new StringBuilder(line).AppendLine();
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(withLineEnding.ToString()));
+        if (_parser.ParseDocument(stream).Single() is not LinkLine linkLine) 
+            throw new ArgumentException();
+
+        var uri = linkLine.Uri;
+        Assert.AreEqual(expectedHost, uri.Host);
+        Assert.AreEqual(expectedPath, uri.PathAndQuery);
     }
 }

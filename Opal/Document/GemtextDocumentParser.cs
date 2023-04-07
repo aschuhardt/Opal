@@ -102,15 +102,19 @@ public class GemtextDocumentParser : IGemtextDocumentParser
         var parts = trimmedAfterPrefix.Split(WhitespaceChars, 2,
             StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
-        // contains alt-text
-        if (!Uri.TryCreate(parts[0], UriKind.RelativeOrAbsolute, out var parsed))
+        var rawUri = new StringBuilder(parts[0]);
+
+        // for protocol-relative URIs, prepend the scheme from the request
+        if (parts[0].StartsWith("//"))
+            rawUri.Insert(0, ':').Insert(0, _uri.Scheme);
+
+        if (!Uri.TryCreate(rawUri.ToString(), UriKind.RelativeOrAbsolute, out var parsed))
             return new TextLine(line.Trim());
 
         if (!parsed.IsAbsoluteUri)
         {
             var pathParts = parts[0].Split('?', 2,
                 StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-
 
             var linePath = pathParts[0];
             parsed = new UriBuilder
