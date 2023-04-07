@@ -1,10 +1,11 @@
-namespace Opal.Authentication.Database;
-
-public enum CertificateResult
+namespace Opal.Authentication.Database
 {
-    Success,
-    Missing,
-    NoPassword,
-    DecryptionFailure,
-    Error
+    public enum CertificateResult
+    {
+        Success,
+        Missing,
+        NoPassword,
+        DecryptionFailure,
+        Error
+    }
 }

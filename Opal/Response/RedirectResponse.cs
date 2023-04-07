@@ -1,15 +1,18 @@
-﻿namespace Opal.Response;
+﻿using System;
 
-public class RedirectResponse : GeminiResponseBase
+namespace Opal.Response
 {
-    public RedirectResponse(Uri uri, bool isPermanent, string redirectTo) : base(isPermanent
-        ? StatusCode.PermanentRedirect
-        : StatusCode.TemporaryRedirect, uri)
+    public class RedirectResponse : GeminiResponseBase
     {
-        IsPermanent = isPermanent;
-        RedirectTo = redirectTo;
-    }
+        public RedirectResponse(Uri uri, bool isPermanent, string redirectTo) : base(isPermanent
+            ? StatusCode.PermanentRedirect
+            : StatusCode.TemporaryRedirect, uri)
+        {
+            IsPermanent = isPermanent;
+            RedirectTo = redirectTo;
+        }
 
-    public bool IsPermanent { get; }
-    public string RedirectTo { get; }
+        public bool IsPermanent { get; }
+        public string RedirectTo { get; }
+    }
 }

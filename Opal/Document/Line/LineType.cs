@@ -1,14 +1,15 @@
-﻿namespace Opal.Document.Line;
-
-public enum LineType
+﻿namespace Opal.Document.Line
 {
-    Empty,
-    Text,
-    Link,
-    Heading,
-    List,
-    Quote,
-    Formatted,
-    FormattedBegin,
-    FormattedEnd
+    public enum LineType
+    {
+        Empty,
+        Text,
+        Link,
+        Heading,
+        List,
+        Quote,
+        Formatted,
+        FormattedBegin,
+        FormattedEnd
+    }
 }

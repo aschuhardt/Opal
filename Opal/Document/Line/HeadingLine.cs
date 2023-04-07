@@ -1,18 +1,19 @@
-﻿namespace Opal.Document.Line;
-
-public class HeadingLine : TextualLineBase
+﻿namespace Opal.Document.Line
 {
-    public HeadingLine(string text, int level) : base(text)
+    public class HeadingLine : TextualLineBase
     {
-        Level = level;
-    }
+        public HeadingLine(string text, int level) : base(text)
+        {
+            Level = level;
+        }
 
-    public int Level { get; }
+        public int Level { get; }
 
-    public override LineType LineType => LineType.Heading;
+        public override LineType LineType => LineType.Heading;
 
-    public override string ToString()
-    {
-        return new string('#', Level) + Text;
+        public override string ToString()
+        {
+            return new string('#', Level) + Text;
+        }
     }
 }

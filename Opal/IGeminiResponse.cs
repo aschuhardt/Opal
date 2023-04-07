@@ -1,29 +1,28 @@
-﻿using Opal.Response;
+﻿using System;
+using Opal.Response;
 
-namespace Opal;
-
-public interface IGeminiResponse
+namespace Opal
 {
-    public StatusCode Status { get; }
+    public interface IGeminiResponse
+    {
+        StatusCode Status { get; }
 
-    public Uri Uri { get; }
+        Uri Uri { get; }
 
-    public bool IsSuccess => Status == StatusCode.Success;
+        bool IsSuccess { get; }
 
-    public bool IsInputRequired => Status is StatusCode.Input or StatusCode.InputSensitive;
+        bool IsInputRequired { get; }
 
-    public bool IsRedirect => Status is StatusCode.PermanentRedirect or StatusCode.TemporaryRedirect;
+        bool IsRedirect { get; }
 
-    public bool IsTemporaryFailure => Status is StatusCode.TemporaryFailure or StatusCode.ServerUnavailable
-        or StatusCode.CgiError or StatusCode.ProxyError or StatusCode.SlowDown;
+        bool IsTemporaryFailure { get; }
 
-    public bool IsPermanentFailure => Status is StatusCode.PermanentFailure or StatusCode.NotFound
-        or StatusCode.Gone or StatusCode.ProxyRequestRefused or StatusCode.BadRequest;
+        bool IsPermanentFailure { get; }
 
-    public bool IsCertificateRequired => Status is StatusCode.ClientCertificateRequired;
+        bool IsCertificateRequired { get; }
 
-    public bool IsCertificateRejected =>
-        Status is StatusCode.CertificateNotAuthorized or StatusCode.CertificateNotValid;
+        bool IsCertificateRejected { get; }
 
-    public bool IsInvalid => Status is StatusCode.Unknown;
+        bool IsInvalid { get; }
+    }
 }

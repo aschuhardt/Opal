@@ -1,82 +1,89 @@
-﻿using System.Collections.Concurrent;
+﻿using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
-namespace Opal.Tofu;
-
-internal class InMemoryCertificateDatabase : ICertificateDatabase
+namespace Opal.Tofu
 {
-    protected readonly IDictionary<string, string> KnownHashesByHost;
-
-    public InMemoryCertificateDatabase()
+    internal class InMemoryCertificateDatabase : ICertificateDatabase
     {
-        KnownHashesByHost = new ConcurrentDictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
-    }
+        protected readonly IDictionary<string, string> KnownHashesByHost;
 
-    public bool IsCertificateValid(string host, X509Certificate certificate,
-        out InvalidCertificateReason result)
-    {
-        var certHost = new X509Certificate2(certificate)
-            .GetNameInfo(X509NameType.DnsName, false);
-
-        if (certHost == null)
+        public InMemoryCertificateDatabase()
         {
-            // unable to obtain certificate name information
-            result = InvalidCertificateReason.MissingInformation;
-            return false;
+            KnownHashesByHost = new ConcurrentDictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
         }
 
-        // ensure that the host matches the certificate
-        if (!certHost.Equals(host, StringComparison.InvariantCultureIgnoreCase))
+        public bool IsCertificateValid(string host, X509Certificate certificate,
+            out InvalidCertificateReason result)
         {
-            result = InvalidCertificateReason.NameMismatch;
-            return false;
-        }
+            var certHost = new X509Certificate2(certificate)
+                .GetNameInfo(X509NameType.DnsName, false);
 
-        if (IsExpired(certificate))
-        {
-            result = InvalidCertificateReason.Expired;
-            return false;
-        }
+            if (certHost == null)
+            {
+                // unable to obtain certificate name information
+                result = InvalidCertificateReason.MissingInformation;
+                return false;
+            }
 
-        var certHash = certificate.GetCertHashString(HashAlgorithmName.SHA256);
+            // ensure that the host matches the certificate
+            if (!certHost.Equals(host, StringComparison.InvariantCultureIgnoreCase))
+            {
+                result = InvalidCertificateReason.NameMismatch;
+                return false;
+            }
 
-        // first time seeing this; cache a hash of the certificate and indicate success
-        if (!KnownHashesByHost.ContainsKey(host))
-        {
-            KnownHashesByHost.Add(host, certHash);
+            if (IsExpired(certificate))
+            {
+                result = InvalidCertificateReason.Expired;
+                return false;
+            }
+
+#if NETSTANDARD2_0
+            var certHash = certificate.GetCertHashString();
+#else
+            var certHash = certificate.GetCertHashString(HashAlgorithmName.SHA256);
+#endif
+
+            // first time seeing this; cache a hash of the certificate and indicate success
+            if (!KnownHashesByHost.ContainsKey(host))
+            {
+                KnownHashesByHost.Add(host, certHash);
+                result = default;
+                AfterDatabaseChanged();
+                return true;
+            }
+
+            // we have seen this before; verify that it's what we expect
+            if (KnownHashesByHost[host] != certHash)
+            {
+                result = InvalidCertificateReason.TrustedMismatch;
+                return false;
+            }
+
+            // everything checks out
             result = default;
-            AfterDatabaseChanged();
             return true;
         }
 
-        // we have seen this before; verify that it's what we expect
-        if (KnownHashesByHost[host] != certHash)
+        public void RemoveTrusted(string host)
         {
-            result = InvalidCertificateReason.TrustedMismatch;
-            return false;
+            if (KnownHashesByHost.ContainsKey(host))
+            {
+                AfterDatabaseChanged();
+                KnownHashesByHost.Remove(host);
+            }
         }
 
-        // everything checks out
-        result = default;
-        return true;
-    }
-
-    public void RemoveTrusted(string host)
-    {
-        if (KnownHashesByHost.ContainsKey(host))
+        protected virtual void AfterDatabaseChanged()
         {
-            AfterDatabaseChanged();
-            KnownHashesByHost.Remove(host);
         }
-    }
 
-    protected virtual void AfterDatabaseChanged()
-    {
-    }
-
-    private static bool IsExpired(X509Certificate certificate)
-    {
-        return DateTime.Parse(certificate.GetExpirationDateString()) < DateTime.Now;
+        private static bool IsExpired(X509Certificate certificate)
+        {
+            return DateTime.Parse(certificate.GetExpirationDateString()) < DateTime.Now;
+        }
     }
 }

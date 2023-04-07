@@ -1,14 +1,15 @@
 using Opal.Authentication.Certificate;
 
-namespace Opal.CallbackArgs;
-
-public class SendingClientCertificateArgs
+namespace Opal.CallbackArgs
 {
-    public SendingClientCertificateArgs(IClientCertificate certificate)
+    public class SendingClientCertificateArgs
     {
-        Certificate = certificate;
-    }
+        public SendingClientCertificateArgs(IClientCertificate certificate)
+        {
+            Certificate = certificate;
+        }
 
-    public IClientCertificate Certificate { get; }
-    public bool Cancel { get; set; }
+        public IClientCertificate Certificate { get; }
+        public bool Cancel { get; set; }
+    }
 }

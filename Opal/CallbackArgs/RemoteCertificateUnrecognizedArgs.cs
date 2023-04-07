@@ -1,17 +1,18 @@
-﻿namespace Opal.CallbackArgs;
-
-public class RemoteCertificateUnrecognizedArgs
+﻿namespace Opal.CallbackArgs
 {
-    internal RemoteCertificateUnrecognizedArgs(string host, string fingerprint)
+    public class RemoteCertificateUnrecognizedArgs
     {
-        Host = host;
-        Fingerprint = fingerprint;
-        AcceptAndTrust = false;
+        internal RemoteCertificateUnrecognizedArgs(string host, string fingerprint)
+        {
+            Host = host;
+            Fingerprint = fingerprint;
+            AcceptAndTrust = false;
+        }
+
+        public string Host { get; }
+
+        public string Fingerprint { get; }
+
+        public bool AcceptAndTrust { get; set; }
     }
-
-    public string Host { get; }
-
-    public string Fingerprint { get; }
-
-    public bool AcceptAndTrust { get; set; }
 }

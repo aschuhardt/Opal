@@ -1,18 +1,21 @@
-﻿namespace Opal.Document.Line;
+﻿using System;
 
-public class LinkLine : TextualLineBase
+namespace Opal.Document.Line
 {
-    public LinkLine(string text, Uri uri) : base(text)
+    public class LinkLine : TextualLineBase
     {
-        Uri = uri;
-    }
+        public LinkLine(string text, Uri uri) : base(text)
+        {
+            Uri = uri;
+        }
 
-    public Uri Uri { get; }
+        public Uri Uri { get; }
 
-    public override LineType LineType => LineType.Link;
+        public override LineType LineType => LineType.Link;
 
-    public override string ToString()
-    {
-        return $"=> {Uri}" + (!string.IsNullOrWhiteSpace(Text) ? $" {Text}" : string.Empty);
+        public override string ToString()
+        {
+            return $"=> {Uri}" + (!string.IsNullOrWhiteSpace(Text) ? $" {Text}" : string.Empty);
+        }
     }
 }

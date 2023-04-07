@@ -1,16 +1,17 @@
-﻿namespace Opal.CallbackArgs;
-
-public class ConfirmRedirectArgs
+﻿namespace Opal.CallbackArgs
 {
-    public ConfirmRedirectArgs(string uri, bool isPermanent)
+    public class ConfirmRedirectArgs
     {
-        Uri = uri;
-        IsPermanent = isPermanent;
-        FollowRedirect = true; // follow redirects by default; let the caller opt-out
+        public ConfirmRedirectArgs(string uri, bool isPermanent)
+        {
+            Uri = uri;
+            IsPermanent = isPermanent;
+            FollowRedirect = true; // follow redirects by default; let the caller opt-out
+        }
+
+        public string Uri { get; }
+        public bool IsPermanent { get; }
+
+        public bool FollowRedirect { get; set; }
     }
-
-    public string Uri { get; }
-    public bool IsPermanent { get; }
-
-    public bool FollowRedirect { get; set; }
 }

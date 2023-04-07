@@ -1,6 +1,7 @@
-﻿namespace Opal.Persistence;
-
-internal class Constants
+﻿namespace Opal.Persistence
 {
-    public const string DirectoryName = "opal_gemini";
+    internal class Constants
+    {
+        public const string DirectoryName = "opal_gemini";
+    }
 }

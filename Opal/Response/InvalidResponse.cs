@@ -1,8 +1,11 @@
-﻿namespace Opal.Response;
+﻿using System;
 
-internal class InvalidResponse : GeminiResponseBase
+namespace Opal.Response
 {
-    internal InvalidResponse(Uri uri) : base(StatusCode.Unknown, uri)
+    internal class InvalidResponse : GeminiResponseBase
     {
+        internal InvalidResponse(Uri uri) : base(StatusCode.Unknown, uri)
+        {
+        }
     }
 }

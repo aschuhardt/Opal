@@ -1,6 +1,7 @@
-﻿namespace Opal.Document.Line;
-
-public interface ILine
+﻿namespace Opal.Document.Line
 {
-    public LineType LineType { get; }
+    public interface ILine
+    {
+        LineType LineType { get; }
+    }
 }

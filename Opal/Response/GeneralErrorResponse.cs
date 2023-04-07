@@ -1,9 +1,12 @@
-﻿namespace Opal.Response;
+﻿using System;
 
-internal class GeneralErrorResponse : ErrorResponse
+namespace Opal.Response
 {
-    public GeneralErrorResponse(Uri uri, Exception ex) : base(uri,
-        StatusCode.Unknown, ex.InnerException?.Message ?? ex.Message)
+    internal class GeneralErrorResponse : ErrorResponse
     {
+        public GeneralErrorResponse(Uri uri, Exception ex) : base(uri,
+            StatusCode.Unknown, ex.InnerException?.Message ?? ex.Message)
+        {
+        }
     }
 }

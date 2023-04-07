@@ -1,11 +1,12 @@
-﻿namespace Opal.Document.Line;
-
-public class FormattedEndLine : ILine
+﻿namespace Opal.Document.Line
 {
-    public LineType LineType => LineType.FormattedEnd;
-
-    public override string ToString()
+    public class FormattedEndLine : ILine
     {
-        return "```";
+        public LineType LineType => LineType.FormattedEnd;
+
+        public override string ToString()
+        {
+            return "```";
+        }
     }
 }

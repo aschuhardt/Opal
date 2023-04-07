@@ -1,16 +1,19 @@
-﻿namespace Opal.Response;
+﻿using System;
 
-public class ErrorResponse : GeminiResponseBase
+namespace Opal.Response
 {
-    internal ErrorResponse(Uri uri, StatusCode status, string message) : base(status, uri)
+    public class ErrorResponse : GeminiResponseBase
     {
-        Message = message;
-    }
+        internal ErrorResponse(Uri uri, StatusCode status, string message) : base(status, uri)
+        {
+            Message = message;
+        }
 
-    public string Message { get; }
+        public string Message { get; }
 
-    public override string ToString()
-    {
-        return $"{base.ToString()} \"{Message}\"";
+        public override string ToString()
+        {
+            return $"{base.ToString()} \"{Message}\"";
+        }
     }
 }

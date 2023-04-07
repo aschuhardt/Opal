@@ -1,21 +1,25 @@
-﻿namespace Opal.Response;
+﻿using System;
+using System.IO;
 
-public class SuccessfulResponse : GeminiResponseBase
+namespace Opal.Response
 {
-    internal SuccessfulResponse(Uri uri, Stream body, string mimeType) : base(StatusCode.Success, uri)
+    public class SuccessfulResponse : GeminiResponseBase
     {
-        Body = body;
-        MimeType = mimeType;
-        IsGemtext = false;
-    }
+        internal SuccessfulResponse(Uri uri, Stream body, string mimeType) : base(StatusCode.Success, uri)
+        {
+            Body = body;
+            MimeType = mimeType;
+            IsGemtext = false;
+        }
 
-    protected SuccessfulResponse(Stream body, Uri uri, string mimeType, bool isGemtext)
-        : this(uri, body, mimeType)
-    {
-        IsGemtext = isGemtext;
-    }
+        protected SuccessfulResponse(Stream body, Uri uri, string mimeType, bool isGemtext)
+            : this(uri, body, mimeType)
+        {
+            IsGemtext = isGemtext;
+        }
 
-    public string MimeType { get; }
-    public Stream Body { get; }
-    public bool IsGemtext { get; }
+        public string MimeType { get; }
+        public Stream Body { get; }
+        public bool IsGemtext { get; }
+    }
 }

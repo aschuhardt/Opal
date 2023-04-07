@@ -1,11 +1,12 @@
-﻿namespace Opal.Document.Line;
-
-public class EmptyLine : ILine
+﻿namespace Opal.Document.Line
 {
-    public LineType LineType => LineType.Empty;
-
-    public override string ToString()
+    public class EmptyLine : ILine
     {
-        return string.Empty;
+        public LineType LineType => LineType.Empty;
+
+        public override string ToString()
+        {
+            return string.Empty;
+        }
     }
 }
