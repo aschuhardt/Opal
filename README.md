@@ -16,7 +16,7 @@ A client library for the Gemini protocol written for .NET 7
 Install the Nuget package
 
 ```
-Install-Package Opal -Version 1.3.0
+Install-Package Opal -Version 1.3.1
 ```
 
 Create an instance of a client and make requests
