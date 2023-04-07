@@ -1,15 +1,16 @@
 using Opal.Authentication.Certificate;
 
-namespace Opal.CallbackArgs;
-
-public class CertificateExpiredArgs
+namespace Opal.CallbackArgs
 {
-    public CertificateExpiredArgs(IClientCertificate existing)
+    public class CertificateExpiredArgs
     {
-        Existing = existing;
-    }
+        public CertificateExpiredArgs(IClientCertificate existing)
+        {
+            Existing = existing;
+        }
 
-    public IClientCertificate Replacement { get; set; }
-    public string Password { get; set; }
-    public IClientCertificate Existing { get; }
+        public IClientCertificate Replacement { get; set; }
+        public string Password { get; set; }
+        public IClientCertificate Existing { get; }
+    }
 }

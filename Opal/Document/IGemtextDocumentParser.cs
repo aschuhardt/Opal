@@ -1,8 +1,11 @@
-﻿using Opal.Document.Line;
+﻿using System.Collections.Generic;
+using System.IO;
+using Opal.Document.Line;
 
-namespace Opal.Document;
-
-public interface IGemtextDocumentParser
+namespace Opal.Document
 {
-    IEnumerable<ILine> ParseDocument(Stream body);
+    public interface IGemtextDocumentParser
+    {
+        IEnumerable<ILine> ParseDocument(Stream body);
+    }
 }

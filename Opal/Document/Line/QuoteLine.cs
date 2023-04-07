@@ -1,15 +1,16 @@
-﻿namespace Opal.Document.Line;
-
-public class QuoteLine : TextualLineBase
+﻿namespace Opal.Document.Line
 {
-    public QuoteLine(string text) : base(text)
+    public class QuoteLine : TextualLineBase
     {
-    }
+        public QuoteLine(string text) : base(text)
+        {
+        }
 
-    public override LineType LineType => LineType.Quote;
+        public override LineType LineType => LineType.Quote;
 
-    public override string ToString()
-    {
-        return $"> {Text}";
+        public override string ToString()
+        {
+            return $"> {Text}";
+        }
     }
 }

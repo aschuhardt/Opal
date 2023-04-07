@@ -1,17 +1,18 @@
 ﻿using System.Security.Cryptography.X509Certificates;
 
-namespace Opal.CallbackArgs;
-
-public class CertificateRequiredArgs
+namespace Opal.CallbackArgs
 {
-    internal CertificateRequiredArgs(string message, string host)
+    public class CertificateRequiredArgs
     {
-        Message = message;
-        Host = host;
-    }
+        internal CertificateRequiredArgs(string message, string host)
+        {
+            Message = message;
+            Host = host;
+        }
 
-    public string Message { get; }
-    public string Host { get; }
-    public X509Certificate2 Certificate { get; set; }
-    public string Password { get; set; }
+        public string Message { get; }
+        public string Host { get; }
+        public X509Certificate2 Certificate { get; set; }
+        public string Password { get; set; }
+    }
 }

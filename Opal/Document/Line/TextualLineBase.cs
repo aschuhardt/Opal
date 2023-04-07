@@ -1,13 +1,14 @@
-﻿namespace Opal.Document.Line;
-
-public abstract class TextualLineBase : ILine
+﻿namespace Opal.Document.Line
 {
-    protected TextualLineBase(string text)
+    public abstract class TextualLineBase : ILine
     {
-        Text = text;
+        protected TextualLineBase(string text)
+        {
+            Text = text;
+        }
+
+        public string Text { get; }
+
+        public abstract LineType LineType { get; }
     }
-
-    public string Text { get; }
-
-    public abstract LineType LineType { get; }
 }

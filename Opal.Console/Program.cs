@@ -9,17 +9,6 @@ string GetInput(string message)
     return (Console.ReadLine() ?? string.Empty).Trim();
 }
 
-Task<string> PromptForPassword(string s)
-{
-    return Task.FromResult(GetInput("Password"));
-}
-
-Task LogCertificateFailure(string msg)
-{
-    Console.WriteLine(msg);
-    return Task.CompletedTask;
-}
-
 Task.Run(async () =>
 {
     var client = new OpalClient();

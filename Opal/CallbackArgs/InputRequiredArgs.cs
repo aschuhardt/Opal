@@ -1,15 +1,16 @@
-﻿namespace Opal.CallbackArgs;
-
-public class InputRequiredArgs
+﻿namespace Opal.CallbackArgs
 {
-    internal InputRequiredArgs(bool isSensitive, string prompt)
+    public class InputRequiredArgs
     {
-        IsSensitive = isSensitive;
-        Prompt = prompt;
-        Value = null;
-    }
+        internal InputRequiredArgs(bool isSensitive, string prompt)
+        {
+            IsSensitive = isSensitive;
+            Prompt = prompt;
+            Value = null;
+        }
 
-    public string Prompt { get; }
-    public bool IsSensitive { get; }
-    public string Value { get; set; }
+        public string Prompt { get; }
+        public bool IsSensitive { get; }
+        public string Value { get; set; }
+    }
 }

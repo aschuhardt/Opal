@@ -1,17 +1,18 @@
 ﻿using System.Security.Cryptography.X509Certificates;
 
-namespace Opal.Tofu;
-
-public class DummyCertificateDatabase : ICertificateDatabase
+namespace Opal.Tofu
 {
-    public virtual bool IsCertificateValid(string host, X509Certificate certificate,
-        out InvalidCertificateReason result)
+    public class DummyCertificateDatabase : ICertificateDatabase
     {
-        result = default;
-        return true;
-    }
+        public virtual bool IsCertificateValid(string host, X509Certificate certificate,
+            out InvalidCertificateReason result)
+        {
+            result = default;
+            return true;
+        }
 
-    public virtual void RemoveTrusted(string host)
-    {
+        public virtual void RemoveTrusted(string host)
+        {
+        }
     }
 }

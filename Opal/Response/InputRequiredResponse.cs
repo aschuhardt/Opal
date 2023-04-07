@@ -1,15 +1,18 @@
-﻿namespace Opal.Response;
+﻿using System;
 
-public class InputRequiredResponse : GeminiResponseBase
+namespace Opal.Response
 {
-    internal InputRequiredResponse(Uri uri, bool sensitive, string message) : base(sensitive
-        ? StatusCode.InputSensitive
-        : StatusCode.Input, uri)
+    public class InputRequiredResponse : GeminiResponseBase
     {
-        Sensitive = sensitive;
-        Message = message;
-    }
+        internal InputRequiredResponse(Uri uri, bool sensitive, string message) : base(sensitive
+            ? StatusCode.InputSensitive
+            : StatusCode.Input, uri)
+        {
+            Sensitive = sensitive;
+            Message = message;
+        }
 
-    public bool Sensitive { get; }
-    public string Message { get; }
+        public bool Sensitive { get; }
+        public string Message { get; }
+    }
 }

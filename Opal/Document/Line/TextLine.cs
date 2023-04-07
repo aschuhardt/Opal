@@ -1,15 +1,16 @@
-﻿namespace Opal.Document.Line;
-
-public class TextLine : TextualLineBase
+﻿namespace Opal.Document.Line
 {
-    public TextLine(string text) : base(text)
+    public class TextLine : TextualLineBase
     {
-    }
+        public TextLine(string text) : base(text)
+        {
+        }
 
-    public override LineType LineType => LineType.Text;
+        public override LineType LineType => LineType.Text;
 
-    public override string ToString()
-    {
-        return Text;
+        public override string ToString()
+        {
+            return Text;
+        }
     }
 }
