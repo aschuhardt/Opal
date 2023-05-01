@@ -45,14 +45,28 @@ namespace Opal
             _redirectBehavior = redirectBehavior;
         }
 
+        /// <inheritdoc />
         public ICertificateDatabase CertificateDatabase { get; }
 
+        /// <inheritdoc />
         public Func<Task<IClientCertificate>> GetActiveClientCertificateCallback { get; set; }
+
+        /// <inheritdoc />
         public Func<CertificateExpiredArgs, Task> ClientCertificateIsExpiredCallback { get; set; }
+
+        /// <inheritdoc />
         public Func<ConfirmRedirectArgs, Task> ConfirmRedirectCallback { get; set; }
+
+        /// <inheritdoc />
         public Func<InputRequiredArgs, Task> InputRequiredCallback { get; set; }
+
+        /// <inheritdoc />
         public Func<SendingClientCertificateArgs, Task> SendingClientCertificateCallback { get; set; }
+
+        /// <inheritdoc />
         public Func<RemoteCertificateInvalidArgs, Task> RemoteCertificateInvalidCallback { get; set; }
+
+        /// <inheritdoc />
         public Func<RemoteCertificateUnrecognizedArgs, Task> RemoteCertificateUnrecognizedCallback { get; set; }
 
         public Task<IGeminiResponse> SendRequestAsync(Uri uri)
