@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Opal.Authentication.Certificate;
-using Opal.Authentication.Database;
 using Opal.CallbackArgs;
 using Opal.Tofu;
 
@@ -12,10 +11,9 @@ namespace Opal
     /// </summary>
     public interface IOpalClient
     {
-        IAuthenticationDatabase AuthenticationDatabase { get; }
         ICertificateDatabase CertificateDatabase { get; }
-        Func<Task<IClientCertificate>> GetActiveCertificateCallback { get; set; }
-        Func<CertificateExpiredArgs, Task> CertificateExpiredCallback { get; set; }
+        Func<Task<IClientCertificate>> GetActiveClientCertificateCallback { get; set; }
+        Func<CertificateExpiredArgs, Task> ClientCertificateIsExpiredCallback { get; set; }
         Func<ConfirmRedirectArgs, Task> ConfirmRedirectCallback { get; set; }
         Func<InputRequiredArgs, Task> InputRequiredCallback { get; set; }
         Func<SendingClientCertificateArgs, Task> SendingClientCertificateCallback { get; set; }
@@ -23,5 +21,6 @@ namespace Opal
         Func<RemoteCertificateUnrecognizedArgs, Task> RemoteCertificateUnrecognizedCallback { get; set; }
         Task<IGeminiResponse> SendRequestAsync(string uri);
         Task<IGeminiResponse> SendRequestAsync(string uri, string input);
+        Task<IGeminiResponse> SendRequestAsync(Uri uri);
     }
 }

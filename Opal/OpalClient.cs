@@ -7,7 +7,6 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using Opal.Authentication.Certificate;
-using Opal.Authentication.Database;
 using Opal.CallbackArgs;
 using Opal.Header;
 using Opal.Response;
@@ -29,13 +28,11 @@ namespace Opal
         private static readonly string SchemePrefix = $"{Scheme}://";
         private readonly RedirectBehavior _redirectBehavior;
 
-        public OpalClient() : this(new DummyCertificateDatabase(), new InMemoryAuthenticationDatabase(),
-            RedirectBehavior.Follow)
+        public OpalClient() : this(new DummyCertificateDatabase(), RedirectBehavior.Follow)
         {
         }
 
-        public OpalClient(ICertificateDatabase certificateDatabase, IAuthenticationDatabase authenticationDatabase,
-            RedirectBehavior redirectBehavior)
+        public OpalClient(ICertificateDatabase certificateDatabase, RedirectBehavior redirectBehavior)
         {
             if (!UriParser.IsKnownScheme("gemini"))
             {
@@ -45,20 +42,23 @@ namespace Opal
             }
 
             CertificateDatabase = certificateDatabase;
-            AuthenticationDatabase = authenticationDatabase;
             _redirectBehavior = redirectBehavior;
         }
 
-        public IAuthenticationDatabase AuthenticationDatabase { get; }
         public ICertificateDatabase CertificateDatabase { get; }
 
-        public Func<Task<IClientCertificate>> GetActiveCertificateCallback { get; set; }
-        public Func<CertificateExpiredArgs, Task> CertificateExpiredCallback { get; set; }
+        public Func<Task<IClientCertificate>> GetActiveClientCertificateCallback { get; set; }
+        public Func<CertificateExpiredArgs, Task> ClientCertificateIsExpiredCallback { get; set; }
         public Func<ConfirmRedirectArgs, Task> ConfirmRedirectCallback { get; set; }
         public Func<InputRequiredArgs, Task> InputRequiredCallback { get; set; }
         public Func<SendingClientCertificateArgs, Task> SendingClientCertificateCallback { get; set; }
         public Func<RemoteCertificateInvalidArgs, Task> RemoteCertificateInvalidCallback { get; set; }
         public Func<RemoteCertificateUnrecognizedArgs, Task> RemoteCertificateUnrecognizedCallback { get; set; }
+
+        public Task<IGeminiResponse> SendRequestAsync(Uri uri)
+        {
+            return SendUriRequestAsync(uri);
+        }
 
         public Task<IGeminiResponse> SendRequestAsync(string uri)
         {
@@ -80,15 +80,19 @@ namespace Opal
             {
                 IGeminiResponse response;
 
+#if NETSTANDARD2_0
                 using (var stream = BuildSslStream(uri, CertificateValidationCallback))
+#else
+                await using (var stream = BuildSslStream(uri, CertificateValidationCallback))
+#endif
                 {
                     stream.ReadTimeout = Timeout;
                     stream.WriteTimeout = Timeout;
 
                     IClientCertificate cert = null;
 
-                    if (GetActiveCertificateCallback != null)
-                        cert = await GetActiveCertificateCallback();
+                    if (GetActiveClientCertificateCallback != null)
+                        cert = await GetActiveClientCertificateCallback();
 
                     // authenticate
                     var hasValidCert = cert != null && await IsCertificateValidAsync(cert) &&
@@ -263,16 +267,14 @@ namespace Opal
             if (DateTime.Now > cert.Certificate.NotAfter)
             {
                 // certificate has expired; present the caller with the opportunity to renew it
-                if (CertificateExpiredCallback != null)
+                if (ClientCertificateIsExpiredCallback != null)
                 {
                     var args = new CertificateExpiredArgs(cert);
-                    await CertificateExpiredCallback(args);
+                    await ClientCertificateIsExpiredCallback(args);
 
                     if (args.Replacement != null)
                     {
-                        await AuthenticationDatabase.RemoveAsync(cert);
                         cert.Certificate = args.Replacement.Certificate;
-                        await AuthenticationDatabase.AddAsync(cert);
                         return true;
                     }
                 }
