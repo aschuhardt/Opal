@@ -7,7 +7,10 @@ namespace Opal.Response
         internal ErrorResponse(Uri uri, StatusCode status, string message) : base(status, uri)
         {
             Message = message;
+            CanRetry = true; // generally okay to try again
         }
+
+        public virtual bool CanRetry { get; }
 
         public string Message { get; }
 

@@ -139,6 +139,10 @@ namespace Opal
             {
                 return new NetworkErrorResponse(uri, e);
             }
+            catch (AuthenticationException e)
+            {
+                return new RemoteCertificateErrorResponse(uri, e);
+            }
             catch (Exception e)
             {
                 return new GeneralErrorResponse(uri, e);
