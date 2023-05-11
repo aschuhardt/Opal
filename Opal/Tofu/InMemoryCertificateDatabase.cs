@@ -68,15 +68,6 @@ namespace Opal.Tofu
             return true;
         }
 
-        public void RemoveTrusted(string host)
-        {
-            if (KnownHashesByHost.ContainsKey(host))
-            {
-                AfterDatabaseChanged();
-                KnownHashesByHost.Remove(host);
-            }
-        }
-
         protected virtual void AfterDatabaseChanged()
         {
         }

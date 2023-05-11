@@ -10,9 +10,5 @@ namespace Opal.Tofu
             result = default;
             return true;
         }
-
-        public virtual void RemoveTrusted(string host)
-        {
-        }
     }
 }

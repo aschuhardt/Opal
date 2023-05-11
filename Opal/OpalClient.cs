@@ -117,9 +117,9 @@ namespace Opal
                         hasValidCert ? new X509Certificate2Collection(cert.Certificate) : null, SslProtocols.Tls12,
                         false);
 #else
-                await stream.AuthenticateAsClientAsync(uri.Host,
-                    hasValidCert ? new X509Certificate2Collection(cert.Certificate) : null,
-                    SslProtocols.Tls12 | SslProtocols.Tls13, false);
+                    await stream.AuthenticateAsClientAsync(uri.Host,
+                        hasValidCert ? new X509Certificate2Collection(cert.Certificate) : null,
+                        SslProtocols.Tls12 | SslProtocols.Tls13, false);
 #endif
 
                     // send the initial request
@@ -343,19 +343,13 @@ namespace Opal
 #if NETSTANDARD2_0
                 var hash = certificate.GetCertHashString();
 #else
-            var hash = certificate.GetCertHashString(HashAlgorithmName.SHA256);
+                var hash = certificate.GetCertHashString(HashAlgorithmName.SHA256);
 #endif
                 var args = new RemoteCertificateUnrecognizedArgs(uri.Host,
                     hash);
                 await RemoteCertificateUnrecognizedCallback(args);
 
-                if (!args.AcceptAndTrust)
-                    return false;
-
-                // user opted to accept this certificate in place of the previously-recognized one,
-                // so update the cache and re-validate
-                CertificateDatabase.RemoveTrusted(uri.Host);
-                return await ValidateCertificate(uri, certificate);
+                return args.AcceptAndTrust;
             }
 
             if (RemoteCertificateInvalidCallback != null)

@@ -12,10 +12,5 @@ namespace Opal.Tofu
         /// <param name="result">A valid indicating the result of the validation (i.e. the reason for failure)</param>
         /// <returns>True if the certificate is valid and trusted, otherwise false</returns>
         bool IsCertificateValid(string host, X509Certificate certificate, out InvalidCertificateReason result);
-
-        /// <summary>
-        ///     Removes the host from the trust database
-        /// </summary>
-        void RemoveTrusted(string host);
     }
 }
