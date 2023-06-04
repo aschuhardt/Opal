@@ -316,13 +316,8 @@ namespace Opal
 
         private static async Task SendRequestAsync(Uri uri, SslStream stream)
         {
-            var header = ConvertToUtf8(uri.ToString());
-            await stream.WriteAsync(header, 0, header.Length);
-
-            var newline = ConvertToUtf8("\r\n");
-            await stream.WriteAsync(newline, 0, newline.Length);
-
-            await stream.FlushAsync();
+            var request = ConvertToUtf8($"{uri}\r\n");
+            await stream.WriteAsync(request, 0, request.Length);
         }
 
         private static SslStream BuildSslStream(Uri uri, Func<Uri, X509Certificate, bool> validation)
