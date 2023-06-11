@@ -11,7 +11,7 @@
         Follow,
 
         /// <summary>
-        ///     Confirm each redirect with the caller by invoking the <see cref="IOpalClient.ConfirmRedirect" /> event
+        ///     Confirm each redirect with the caller by invoking the <see cref="IOpalClient.ConfirmRedirectCallback" /> event
         /// </summary>
         Confirm,
 
