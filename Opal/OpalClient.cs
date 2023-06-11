@@ -397,12 +397,15 @@ namespace Opal
 
                 await upload.Content.CopyToAsync(stream);
             }
+
+            await stream.FlushAsync();
         }
 
         private static async Task SendRequestAsync(Uri uri, SslStream stream)
         {
             var request = ConvertToUtf8($"{uri}\r\n");
             await stream.WriteAsync(request, 0, request.Length);
+            await stream.FlushAsync();
         }
 
         private static SslStream BuildSslStream(Uri uri, Func<Uri, X509Certificate, bool> validation)
