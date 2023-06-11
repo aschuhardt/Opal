@@ -1,17 +1,32 @@
 ﻿using System.Diagnostics;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using Opal;
-using Opal.Authentication.Database;
+using Opal.Authentication.Certificate;
 using Opal.Response;
-using Opal.Tofu;
 
-string GetInput(string message)
+string? _certPath = null;
+
+string GetInput()
 {
     return (Console.ReadLine() ?? string.Empty).Trim();
+}
+
+Task<IClientCertificate> GetClientCertificate()
+{
+    if (string.IsNullOrEmpty(_certPath))
+        return Task.FromResult<IClientCertificate?>(null);
+
+    var pkcs12 = X509Certificate2.CreateFromPemFile(_certPath).Export(X509ContentType.Pkcs12);
+    var cert = new X509Certificate2(pkcs12);
+    return Task.FromResult(new ClientCertificate(cert) as IClientCertificate);
 }
 
 Task.Run(async () =>
 {
     var client = new OpalClient();
+
+    client.GetActiveClientCertificateCallback = GetClientCertificate;
 
     while (true)
     {
@@ -24,7 +39,24 @@ Task.Run(async () =>
         if (command.Equals("exit", StringComparison.InvariantCultureIgnoreCase))
             break;
 
-        var response = await client.SendRequestAsync(command);
+        if (command.Equals("cert", StringComparison.InvariantCultureIgnoreCase))
+        {
+            Console.Write("Enter the client certificate file's path: ");
+            _certPath = GetInput();
+        }
+
+        IGeminiResponse response;
+
+        if (command.StartsWith("titan"))
+        {
+            Console.Write("Enter the text to upload: ");
+            var contents = GetInput();
+            await using var payload = new MemoryStream(Encoding.UTF8.GetBytes(contents));
+            response = await client.UploadAsync(command, contents.Length, null, "text/plain; charset=utf-8", payload);
+        }
+        else
+            response = await client.SendRequestAsync(command);
+
         if (response.IsSuccess && response is SuccessfulResponse successfulResponse)
         {
             if (successfulResponse.IsGemtext && successfulResponse is GemtextResponse gmiResponse)
@@ -45,9 +77,7 @@ Task.Run(async () =>
             }
         }
         else
-        {
             Console.WriteLine(response.ToString());
-        }
     }
 }).Wait();
 
