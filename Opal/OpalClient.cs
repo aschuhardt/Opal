@@ -381,7 +381,7 @@ namespace Opal
         {
             var intent = new StringBuilder($"{uri};size={upload.Size};mime={upload.Mime}");
             if (!string.IsNullOrEmpty(upload.Token))
-                intent.Append($";token={Uri.EscapeUriString(upload.Token)}");
+                intent.Append($";token={Uri.EscapeDataString(upload.Token)}");
             intent.Append("\r\n");
 
             var request = ConvertToUtf8(intent.ToString());
