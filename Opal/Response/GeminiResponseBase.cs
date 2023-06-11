@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Net.Security;
+using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
 
 namespace Opal.Response
 {
@@ -30,9 +33,27 @@ namespace Opal.Response
         public bool IsCertificateRejected => Status == StatusCode.CertificateNotAuthorized || Status == StatusCode.CertificateNotValid;
         public bool IsInvalid => Status is StatusCode.Unknown;
 
+        public X509Certificate HostCertificate { get; private set; }
+        public SslProtocols Protocol { get; private set; }
+        public CipherAlgorithmType CipherAlgorithm { get; private set; }
+        public HashAlgorithmType HashAlgorithm { get; private set; }
+        public ExchangeAlgorithmType KeyExchangeAlgorithm { get; private set; }
+
         public override string ToString()
         {
             return $"{(int)Status} {Status}";
+        }
+
+        internal void EnrichWithSslStreamMetadata(SslStream stream)
+        {
+            if (stream == null)
+                return;
+
+            HostCertificate = stream.RemoteCertificate;
+            Protocol = stream.SslProtocol;
+            CipherAlgorithm = stream.CipherAlgorithm;
+            HashAlgorithm = stream.HashAlgorithm;
+            KeyExchangeAlgorithm = stream.KeyExchangeAlgorithm;
         }
     }
 }

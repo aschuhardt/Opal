@@ -174,6 +174,9 @@ namespace Opal
                     // read the response from the server
                     response = await ReadResponseAsync(uri, stream);
 
+                    if (response is GeminiResponseBase geminiResponse)
+                        geminiResponse.EnrichWithSslStreamMetadata(stream);
+
                     // if successful, return immediately
                     if (response is SuccessfulResponse)
                         return response;
