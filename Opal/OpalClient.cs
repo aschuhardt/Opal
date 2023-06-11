@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Opal.Authentication.Certificate;
 using Opal.CallbackArgs;
 using Opal.Header;
+using Opal.Request;
 using Opal.Response;
 using Opal.Tofu;
 
@@ -24,8 +25,10 @@ namespace Opal
         private const int MaxRedirectDepth = 5;
         private const int DefaultPort = 1965;
         private const int Timeout = 4000;
-        private const string Scheme = "gemini";
-        private static readonly string SchemePrefix = $"{Scheme}://";
+        private const string GeminiScheme = "gemini";
+        private const string TitanScheme = "titan";
+        private static readonly string GeminiSchemePrefix = $"{GeminiScheme}://";
+        private static readonly string TitanSchemePrefix = $"{TitanScheme}://";
         private readonly RedirectBehavior _redirectBehavior;
 
         public OpalClient() : this(new DummyCertificateDatabase(), RedirectBehavior.Follow)
@@ -34,11 +37,18 @@ namespace Opal
 
         public OpalClient(ICertificateDatabase certificateDatabase, RedirectBehavior redirectBehavior)
         {
-            if (!UriParser.IsKnownScheme("gemini"))
+            if (!UriParser.IsKnownScheme(GeminiScheme))
             {
                 UriParser.Register(
                     new GenericUriParser(GenericUriParserOptions.NoFragment | GenericUriParserOptions.Default),
-                    Scheme, DefaultPort);
+                    GeminiScheme, DefaultPort);
+            }
+
+            if (!UriParser.IsKnownScheme(TitanScheme))
+            {
+                UriParser.Register(
+                    new GenericUriParser(GenericUriParserOptions.NoFragment | GenericUriParserOptions.Default),
+                    TitanScheme, DefaultPort);
             }
 
             CertificateDatabase = certificateDatabase;
@@ -74,21 +84,55 @@ namespace Opal
             return SendUriRequestAsync(uri);
         }
 
+        public Task<IGeminiResponse> UploadAsync(string uri, int size, string token, string mime, Stream content)
+        {
+            if (uri.StartsWith(GeminiSchemePrefix))
+                throw new InvalidOperationException("Cannot upload to a Gemini resource");
+
+            if (!uri.StartsWith(TitanSchemePrefix))
+                uri = TitanSchemePrefix + uri;
+
+            return UploadAsync(new Uri(uri), size, token, mime, content);
+        }
+
+        public Task<IGeminiResponse> UploadAsync(Uri uri, int size, string token, string mime, Stream content)
+        {
+            if (uri.Scheme != TitanScheme)
+                throw new InvalidOperationException($"Uploads must use the {TitanScheme} scheme");
+
+            if (size < 0)
+                throw new InvalidOperationException("Upload size cannot be negative");
+
+            var options = new RequestOptions
+            {
+                Upload = new UploadParameters
+                {
+                    Size = size,
+                    Mime = mime ?? "application/octet-stream",
+                    Token = token,
+                    Content = content
+                }
+            };
+
+
+            return SendUriRequestAsync(uri, options);
+        }
+
         public Task<IGeminiResponse> SendRequestAsync(string uri)
         {
-            if (!uri.StartsWith(SchemePrefix, StringComparison.InvariantCultureIgnoreCase))
-                uri = SchemePrefix + uri;
+            if (!uri.StartsWith(GeminiSchemePrefix, StringComparison.InvariantCultureIgnoreCase))
+                uri = GeminiSchemePrefix + uri;
             return SendUriRequestAsync(new Uri(uri));
         }
 
         public Task<IGeminiResponse> SendRequestAsync(string uri, string input)
         {
-            if (!uri.StartsWith(SchemePrefix, StringComparison.InvariantCultureIgnoreCase))
-                uri = SchemePrefix + uri;
+            if (!uri.StartsWith(GeminiSchemePrefix, StringComparison.InvariantCultureIgnoreCase))
+                uri = GeminiSchemePrefix + uri;
             return SendUriRequestAsync(new UriBuilder(uri) { Query = input }.Uri);
         }
 
-        private async Task<IGeminiResponse> SendUriRequestAsync(Uri uri, bool allowRepeat = true, int depth = 1)
+        private async Task<IGeminiResponse> SendUriRequestAsync(Uri uri, RequestOptions options = null)
         {
             try
             {
@@ -122,8 +166,10 @@ namespace Opal
                         SslProtocols.Tls12 | SslProtocols.Tls13, false);
 #endif
 
-                    // send the initial request
-                    await SendRequestAsync(uri, stream);
+                    if (uri.Scheme == TitanScheme && options?.Upload != null)
+                        await SendUploadAsync(uri, stream, options.Upload);
+                    else
+                        await SendRequestAsync(uri, stream);
 
                     // read the response from the server
                     response = await ReadResponseAsync(uri, stream);
@@ -133,7 +179,7 @@ namespace Opal
                         return response;
                 }
 
-                return await ProcessNonSuccessResponseAsync(response, uri, allowRepeat, depth);
+                return await ProcessNonSuccessResponseAsync(response, uri, options);
             }
             catch (SocketException e)
             {
@@ -172,10 +218,9 @@ namespace Opal
         }
 
         private async Task<IGeminiResponse> ProcessNonSuccessResponseAsync(IGeminiResponse response, Uri uri,
-            bool allowRepeat,
-            int depth)
+            RequestOptions options)
         {
-            if (response.IsInputRequired && allowRepeat && response is InputRequiredResponse inputResponse)
+            if (response.IsInputRequired && options.AllowRepeat && response is InputRequiredResponse inputResponse)
             {
                 // prompt the caller to provide input, and re-send the request if any ways provided
                 var args = new InputRequiredArgs(inputResponse.Sensitive,
@@ -186,23 +231,24 @@ namespace Opal
                 {
                     // caller provided input; re-send with the input
                     var updatedUri = new UriBuilder(uri) { Query = args.Value }.Uri;
-                    return await SendUriRequestAsync(updatedUri, false);
+                    options.AllowRepeat = false;
+                    return await SendUriRequestAsync(updatedUri, options);
                 }
             }
             else if (response.IsRedirect && response is RedirectResponse redirectResponse)
             {
+                // uploads don't follow redirects in the conventional sense
                 if (_redirectBehavior == RedirectBehavior.Ignore)
                     return response;
 
-                if (depth >= MaxRedirectDepth)
+                if (options.Depth >= MaxRedirectDepth)
                     return new ErrorResponse(uri, StatusCode.Unknown, "Too many redirects");
-
-                // prompt the caller to confirm redirection
-                var args = new ConfirmRedirectArgs(redirectResponse.RedirectTo, redirectResponse.IsPermanent);
 
                 var shouldFollow = true;
                 if (_redirectBehavior == RedirectBehavior.Confirm && ConfirmRedirectCallback != null)
                 {
+                    // prompt the caller to confirm redirection
+                    var args = new ConfirmRedirectArgs(redirectResponse.RedirectTo, redirectResponse.IsPermanent);
                     await ConfirmRedirectCallback(args);
                     shouldFollow = args.FollowRedirect;
                 }
@@ -211,15 +257,32 @@ namespace Opal
                 {
                     var nextUri = new Uri(redirectResponse.RedirectTo, UriKind.RelativeOrAbsolute);
 
+                    if (options.Upload != null || nextUri.Scheme == TitanScheme)
+                    {
+                        nextUri = ConvertTitanUriToGemini(nextUri);
+                        options.Upload = null;
+                    }
+
                     // redirects have to support relative URIs;
                     if (!nextUri.IsAbsoluteUri && !Uri.TryCreate(uri, redirectResponse.RedirectTo, out nextUri))
                         return new ErrorResponse(uri, StatusCode.Unknown, "Invalid redirect URI");
 
-                    return await SendUriRequestAsync(nextUri, depth: depth + 1);
+                    options.Depth++;
+                    return await SendUriRequestAsync(nextUri, options);
                 }
             }
 
             return response;
+        }
+
+        private static Uri ConvertTitanUriToGemini(Uri uri)
+        {
+            var builder = new UriBuilder(uri)
+            {
+                Scheme = GeminiScheme
+            };
+
+            return builder.Uri;
         }
 
         private static byte[] ConvertToUtf8(string source)
@@ -312,6 +375,28 @@ namespace Opal
             await SendingClientCertificateCallback(args);
 
             return !args.Cancel;
+        }
+
+        private static async Task SendUploadAsync(Uri uri, SslStream stream, UploadParameters upload)
+        {
+            var intent = new StringBuilder($"{uri};size={upload.Size};mime={upload.Mime}");
+            if (!string.IsNullOrEmpty(upload.Token))
+                intent.Append($";token={Uri.EscapeUriString(upload.Token)}");
+            intent.Append("\r\n");
+
+            var request = ConvertToUtf8(intent.ToString());
+
+            // first write the intent URI
+            await stream.WriteAsync(request, 0, request.Length);
+
+            if (upload.Size > 0)
+            {
+                // next send the payload
+                if (upload.Content.CanSeek)
+                    upload.Content.Seek(0, SeekOrigin.Begin);
+
+                await upload.Content.CopyToAsync(stream);
+            }
         }
 
         private static async Task SendRequestAsync(Uri uri, SslStream stream)

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Threading.Tasks;
 using Opal.Authentication.Certificate;
 using Opal.CallbackArgs;
@@ -63,5 +64,7 @@ namespace Opal
         Task<IGeminiResponse> SendRequestAsync(string uri);
         Task<IGeminiResponse> SendRequestAsync(string uri, string input);
         Task<IGeminiResponse> SendRequestAsync(Uri uri);
+        Task<IGeminiResponse> UploadAsync(string uri, int size, string token, string mime, Stream content);
+        Task<IGeminiResponse> UploadAsync(Uri uri, int size, string token, string mime, Stream content);
     }
 }
