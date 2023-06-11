@@ -1,7 +1,7 @@
 ![Opal on Nuget](https://img.shields.io/nuget/v/Opal) ![Opal build](https://img.shields.io/github/actions/workflow/status/aschuhardt/Opal/dotnet.yml?branch=main) ![Last commit](https://img.shields.io/github/last-commit/aschuhardt/Opal) ![MIT](https://img.shields.io/github/license/aschuhardt/Opal)
 
 # Opal
-A client library for the Gemini protocol targeting .NET Standard 2.0, .NET 6, and .NET 7
+A client library for the Gemini and Titan protocols targeting .NET Standard 2.0, .NET 6, and .NET 7
 
 ## Features
 - Asynchronous requests
@@ -10,13 +10,13 @@ A client library for the Gemini protocol targeting .NET Standard 2.0, .NET 6, an
 - Configurable redirect behavior
 - Optional client certificate support with creation and persistence
 - Optional TOFU semantics with persistent certificate caching
-- No external libraries (only uses what .NET provides)
+- No external dependencies
 
 ## Usage
 Install the Nuget package
 
 ```
-Install-Package Opal -Version 1.6.1
+Install-Package Opal -Version 1.7.0
 ```
 
 Create an instance of a client and make requests
