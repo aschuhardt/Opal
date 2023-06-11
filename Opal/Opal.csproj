@@ -3,13 +3,15 @@
   <PropertyGroup>
       <ImplicitUsings>disable</ImplicitUsings>
       <Authors>Addison Schuhardt</Authors>
-      <Description>A client library for the Gemini protocol</Description>
+      <Description>A client library for the Gemini and Titan protocols</Description>
       <PackageProjectUrl>https://github.com/aschuhardt/Opal</PackageProjectUrl>
       <RepositoryUrl>https://github.com/aschuhardt/Opal</RepositoryUrl>
-      <PackageTags>gemini;gemini-protocol;client;smolnet</PackageTags>
+      <PackageTags>gemini;gemini-protocol;titan;titan-protocol;client</PackageTags>
       <PackageLicenseExpression>MIT</PackageLicenseExpression>
-      <PackageVersion>1.6.1</PackageVersion>
+      <PackageVersion>1.7.0</PackageVersion>
       <TargetFrameworks>net7.0;net6.0;netstandard2.0</TargetFrameworks>
+	  <IncludeSymbols>true</IncludeSymbols>
+	  <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 
   <ItemGroup>
