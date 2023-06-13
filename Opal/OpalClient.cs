@@ -81,7 +81,7 @@ namespace Opal
 
         public Task<IGeminiResponse> SendRequestAsync(Uri uri)
         {
-            return SendUriRequestAsync(uri);
+            return SendUriRequestAsync(uri, RequestOptions.Default);
         }
 
         public Task<IGeminiResponse> UploadAsync(string uri, int size, string token, string mime, Stream content)
@@ -122,17 +122,17 @@ namespace Opal
         {
             if (!uri.StartsWith(GeminiSchemePrefix, StringComparison.InvariantCultureIgnoreCase))
                 uri = GeminiSchemePrefix + uri;
-            return SendUriRequestAsync(new Uri(uri));
+            return SendUriRequestAsync(new Uri(uri), RequestOptions.Default);
         }
 
         public Task<IGeminiResponse> SendRequestAsync(string uri, string input)
         {
             if (!uri.StartsWith(GeminiSchemePrefix, StringComparison.InvariantCultureIgnoreCase))
                 uri = GeminiSchemePrefix + uri;
-            return SendUriRequestAsync(new UriBuilder(uri) { Query = input }.Uri);
+            return SendUriRequestAsync(new UriBuilder(uri) { Query = input }.Uri, RequestOptions.Default);
         }
 
-        private async Task<IGeminiResponse> SendUriRequestAsync(Uri uri, RequestOptions options = null)
+        private async Task<IGeminiResponse> SendUriRequestAsync(Uri uri, RequestOptions options)
         {
             try
             {
@@ -244,7 +244,7 @@ namespace Opal
                 if (_redirectBehavior == RedirectBehavior.Ignore)
                     return response;
 
-                if (options.Depth >= MaxRedirectDepth)
+                if (options?.Depth >= MaxRedirectDepth)
                     return new ErrorResponse(uri, StatusCode.Unknown, "Too many redirects");
 
                 var shouldFollow = true;

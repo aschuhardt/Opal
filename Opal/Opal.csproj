@@ -8,7 +8,7 @@
       <RepositoryUrl>https://github.com/aschuhardt/Opal</RepositoryUrl>
       <PackageTags>gemini;gemini-protocol;titan;titan-protocol;client</PackageTags>
       <PackageLicenseExpression>MIT</PackageLicenseExpression>
-      <PackageVersion>1.7.0</PackageVersion>
+      <PackageVersion>1.7.1</PackageVersion>
       <TargetFrameworks>net7.0;net6.0;netstandard2.0</TargetFrameworks>
 	  <IncludeSymbols>true</IncludeSymbols>
 	  <SymbolPackageFormat>snupkg</SymbolPackageFormat>
