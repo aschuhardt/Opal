@@ -260,15 +260,17 @@ namespace Opal
                 {
                     var nextUri = new Uri(redirectResponse.RedirectTo, UriKind.RelativeOrAbsolute);
 
-                    if (options.Upload != null || nextUri.Scheme == TitanScheme)
-                    {
-                        nextUri = ConvertTitanUriToGemini(nextUri);
-                        options.Upload = null;
-                    }
-
                     // redirects have to support relative URIs;
                     if (!nextUri.IsAbsoluteUri && !Uri.TryCreate(uri, redirectResponse.RedirectTo, out nextUri))
                         return new ErrorResponse(uri, StatusCode.Unknown, "Invalid redirect URI");
+
+                    if (options?.Upload != null || nextUri.Scheme == TitanScheme)
+                    {
+                        nextUri = ConvertTitanUriToGemini(nextUri);
+
+                        if (options != null)
+                        options.Upload = null;
+                    }
 
                     options.Depth++;
                     return await SendUriRequestAsync(nextUri, options);
