@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Opal.Authentication.Certificate;
 using Opal.CallbackArgs;
@@ -24,11 +25,11 @@ namespace Opal
     {
         private const int MaxRedirectDepth = 5;
         private const int DefaultPort = 1965;
-        private const int Timeout = 4000;
+        private const int Timeout = 40000;
         private const string GeminiScheme = "gemini";
         private const string TitanScheme = "titan";
-        private static readonly string GeminiSchemePrefix = $"{GeminiScheme}://";
-        private static readonly string TitanSchemePrefix = $"{TitanScheme}://";
+        private readonly static string GeminiSchemePrefix = $"{GeminiScheme}://";
+        private readonly static string TitanSchemePrefix = $"{TitanScheme}://";
         private readonly RedirectBehavior _redirectBehavior;
 
         public OpalClient() : this(new DummyCertificateDatabase(), RedirectBehavior.Follow)
@@ -41,14 +42,16 @@ namespace Opal
             {
                 UriParser.Register(
                     new GenericUriParser(GenericUriParserOptions.NoFragment | GenericUriParserOptions.Default),
-                    GeminiScheme, DefaultPort);
+                    GeminiScheme,
+                    DefaultPort);
             }
 
             if (!UriParser.IsKnownScheme(TitanScheme))
             {
                 UriParser.Register(
                     new GenericUriParser(GenericUriParserOptions.NoFragment | GenericUriParserOptions.Default),
-                    TitanScheme, DefaultPort);
+                    TitanScheme,
+                    DefaultPort);
             }
 
             CertificateDatabase = certificateDatabase;
@@ -114,7 +117,6 @@ namespace Opal
                 }
             };
 
-
             return SendUriRequestAsync(uri, options);
         }
 
@@ -136,7 +138,7 @@ namespace Opal
         {
             try
             {
-                IGeminiResponse response;
+                IGeminiResponse response = null;
 
 #if NETSTANDARD2_0
                 using (var stream = BuildSslStream(uri, CertificateValidationCallback))
@@ -153,26 +155,25 @@ namespace Opal
                         cert = await GetActiveClientCertificateCallback();
 
                     // authenticate
-                    var hasValidCert = cert != null && await IsCertificateValidAsync(cert) &&
-                                       await CanSendCertificateAsync(cert);
+                    var hasValidCert = cert != null && await IsCertificateValidAsync(cert).ConfigureAwait(false) &&
+                                       await CanSendCertificateAsync(cert).ConfigureAwait(false);
+                    var certificate = hasValidCert ? new X509Certificate2Collection(cert.Certificate) : null;
 
 #if NETSTANDARD2_0
                     await stream.AuthenticateAsClientAsync(uri.Host,
-                        hasValidCert ? new X509Certificate2Collection(cert.Certificate) : null, SslProtocols.Tls12,
-                        false);
+                        certificate, SslProtocols.Tls12, false).ConfigureAwait(false);
 #else
-                    await stream.AuthenticateAsClientAsync(uri.Host,
-                        hasValidCert ? new X509Certificate2Collection(cert.Certificate) : null,
-                        SslProtocols.Tls12 | SslProtocols.Tls13, false);
+                    await stream.AuthenticateAsClientAsync(uri.Host, 
+                        certificate, SslProtocols.Tls12 | SslProtocols.Tls13, false).ConfigureAwait(false);
 #endif
 
                     if (uri.Scheme == TitanScheme && options?.Upload != null)
-                        await SendUploadAsync(uri, stream, options.Upload);
+                        await SendUploadAsync(uri, stream, options.Upload).ConfigureAwait(false);
                     else
-                        await SendRequestAsync(uri, stream);
+                        await SendRequestAsync(uri, stream).ConfigureAwait(false);
 
                     // read the response from the server
-                    response = await ReadResponseAsync(uri, stream);
+                    response = await ReadResponseAsync(uri, stream).ConfigureAwait(false);
 
                     if (response is GeminiResponseBase geminiResponse)
                         geminiResponse.EnrichWithSslStreamMetadata(stream);
@@ -182,6 +183,7 @@ namespace Opal
                         return response;
                 }
 
+                // the response was not successful; do something about it
                 return await ProcessNonSuccessResponseAsync(response, uri, options);
             }
             catch (SocketException e)
@@ -208,13 +210,18 @@ namespace Opal
         {
             // read the entire response into a buffer
             var body = new MemoryStream();
-            await stream.CopyToAsync(body);
+
+            // using (var cancellationSource = new CancellationTokenSource(Timeout))
+                await stream.CopyToAsync(body/*, 81920, cancellationSource.Token*/).ConfigureAwait(false);
 
             // the first line will contain the header; if the status is 'success', then we will copy the rest of the buffer onto the response
             body.Seek(0, SeekOrigin.Begin);
 
+            if (body.Length == 0)
+                return new EmptyErrorResponse(uri);
+
             var reader = new StreamReader(body);
-            var header = GeminiHeader.Parse(await reader.ReadLineAsync());
+            var header = GeminiHeader.Parse(await reader.ReadLineAsync().ConfigureAwait(false));
             return header == null
                 ? new InvalidResponse(uri)
                 : BuildResponse(uri, header, body);
@@ -230,12 +237,13 @@ namespace Opal
                     inputResponse.Message ?? "Input required");
                 if (InputRequiredCallback != null)
                     await InputRequiredCallback(args);
+
                 if (!string.IsNullOrEmpty(args.Value))
                 {
                     // caller provided input; re-send with the input
                     var updatedUri = new UriBuilder(uri) { Query = args.Value }.Uri;
                     options.AllowRepeat = false;
-                    return await SendUriRequestAsync(updatedUri, options);
+                    return await SendUriRequestAsync(updatedUri, options).ConfigureAwait(false);
                 }
             }
             else if (response.IsRedirect && response is RedirectResponse redirectResponse)
@@ -248,6 +256,7 @@ namespace Opal
                     return new ErrorResponse(uri, StatusCode.Unknown, "Too many redirects");
 
                 var shouldFollow = true;
+
                 if (_redirectBehavior == RedirectBehavior.Confirm && ConfirmRedirectCallback != null)
                 {
                     // prompt the caller to confirm redirection
@@ -269,11 +278,11 @@ namespace Opal
                         nextUri = ConvertTitanUriToGemini(nextUri);
 
                         if (options != null)
-                        options.Upload = null;
+                            options.Upload = null;
                     }
 
                     options.Depth++;
-                    return await SendUriRequestAsync(nextUri, options);
+                    return await SendUriRequestAsync(nextUri, options).ConfigureAwait(false);
                 }
             }
 
@@ -300,7 +309,7 @@ namespace Opal
 #if NETSTANDARD2_0
             return mimetype.ToUpperInvariant().Contains(GemtextResponse.GemtextMimeType);
 #else
-        return mimetype.Contains(GemtextResponse.GemtextMimeType, StringComparison.InvariantCultureIgnoreCase);
+            return mimetype.Contains(GemtextResponse.GemtextMimeType, StringComparison.InvariantCultureIgnoreCase);
 #endif
         }
 
@@ -314,6 +323,7 @@ namespace Opal
             contents.Seek(header.LengthIncludingNewline, SeekOrigin.Begin);
 
             var status = (StatusCode)header.StatusCode;
+
             switch (status)
             {
                 case StatusCode.Input:
@@ -385,40 +395,34 @@ namespace Opal
         private static async Task SendUploadAsync(Uri uri, SslStream stream, UploadParameters upload)
         {
             var intent = new StringBuilder($"{uri};size={upload.Size};mime={upload.Mime}");
+
             if (!string.IsNullOrEmpty(upload.Token))
                 intent.Append($";token={Uri.EscapeDataString(upload.Token)}");
+
             intent.Append("\r\n");
 
             var request = ConvertToUtf8(intent.ToString());
 
             // first write the intent URI
-            await stream.WriteAsync(request, 0, request.Length);
-
-            if (upload.Size > 0)
-            {
-                // next send the payload
-                if (upload.Content.CanSeek)
-                    upload.Content.Seek(0, SeekOrigin.Begin);
-
-                await upload.Content.CopyToAsync(stream);
-            }
-
-            await stream.FlushAsync();
+            await stream.WriteAsync(request, 0, request.Length).ConfigureAwait(false);
+            await upload.Content.CopyToAsync(stream).ConfigureAwait(false);
+            await stream.FlushAsync().ConfigureAwait(false);
         }
 
-        private static async Task SendRequestAsync(Uri uri, SslStream stream)
+        private static async Task SendRequestAsync(Uri uri, Stream stream)
         {
             var request = ConvertToUtf8($"{uri}\r\n");
-            await stream.WriteAsync(request, 0, request.Length);
-            await stream.FlushAsync();
+            await stream.WriteAsync(request, 0, request.Length).ConfigureAwait(false);
+            await stream.FlushAsync().ConfigureAwait(false);
         }
 
         private static SslStream BuildSslStream(Uri uri, Func<Uri, X509Certificate, bool> validation)
         {
-            var tcpClient = new TcpClient(uri.Host, uri.IsDefaultPort ? DefaultPort : uri.Port);
+            var port = uri.IsDefaultPort ? DefaultPort : uri.Port;
+            var tcpClient = new TcpClient(uri.Host, port);
             return new SslStream(tcpClient.GetStream(), false,
-                (sender, certificate, chain, errors) => validation(uri, certificate),
-                null, EncryptionPolicy.RequireEncryption);
+                (sender, certificate, chain, errors) => validation(uri, certificate), null,
+                EncryptionPolicy.RequireEncryption);
         }
 
         private async Task<bool> ValidateCertificate(Uri uri, X509Certificate certificate)
