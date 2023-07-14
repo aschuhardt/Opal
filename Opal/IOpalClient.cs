@@ -61,6 +61,12 @@ namespace Opal
         /// </summary>
         Func<RemoteCertificateUnrecognizedArgs, Task> RemoteCertificateUnrecognizedCallback { get; set; }
 
+        /// <summary>
+        ///     Set this to true in order to allow the client to establish connections via IPv6 as well as IPv4.  This flag may
+        ///     be helpful when troubleshooting certain network issues.
+        /// </summary>
+        bool AllowIPv6 { get; set; }
+
         Task<IGeminiResponse> SendRequestAsync(string uri);
         Task<IGeminiResponse> SendRequestAsync(string uri, string input);
         Task<IGeminiResponse> SendRequestAsync(Uri uri);
