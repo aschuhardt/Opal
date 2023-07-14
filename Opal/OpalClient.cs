@@ -5,7 +5,6 @@ using System.Net.Sockets;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using Opal.Authentication.Certificate;
 using Opal.CallbackArgs;
@@ -82,6 +81,9 @@ namespace Opal
         /// <inheritdoc />
         public Func<RemoteCertificateUnrecognizedArgs, Task> RemoteCertificateUnrecognizedCallback { get; set; }
 
+        /// <inheritdoc />
+        public bool AllowIPv6 { get; set; }
+
         public Task<IGeminiResponse> SendRequestAsync(Uri uri)
         {
             return SendUriRequestAsync(uri, RequestOptions.Default);
@@ -141,9 +143,9 @@ namespace Opal
                 IGeminiResponse response = null;
 
 #if NETSTANDARD2_0
-                using (var stream = BuildSslStream(uri, CertificateValidationCallback))
+                using (var stream = await BuildSslStream(uri, CertificateValidationCallback))
 #else
-                await using (var stream = BuildSslStream(uri, CertificateValidationCallback))
+                await using (var stream = await BuildSslStream(uri, CertificateValidationCallback))
 #endif
                 {
                     stream.ReadTimeout = Timeout;
@@ -157,11 +159,15 @@ namespace Opal
                     // authenticate
                     var hasValidCert = cert != null && await IsCertificateValidAsync(cert).ConfigureAwait(false) &&
                                        await CanSendCertificateAsync(cert).ConfigureAwait(false);
-                    var certificate = hasValidCert ? new X509Certificate2Collection(cert.Certificate) : null;
+                    var certificate = hasValidCert
+                        ? new X509Certificate2Collection(cert.Certificate)
+                        : null;
 
 #if NETSTANDARD2_0
                     await stream.AuthenticateAsClientAsync(uri.Host,
-                        certificate, SslProtocols.Tls12, false).ConfigureAwait(false);
+                        certificate,
+                        SslProtocols.Tls12,
+                        false).ConfigureAwait(false);
 #else
                     await stream.AuthenticateAsClientAsync(uri.Host, 
                         certificate, SslProtocols.Tls12 | SslProtocols.Tls13, false).ConfigureAwait(false);
@@ -210,9 +216,7 @@ namespace Opal
         {
             // read the entire response into a buffer
             var body = new MemoryStream();
-
-            // using (var cancellationSource = new CancellationTokenSource(Timeout))
-                await stream.CopyToAsync(body/*, 81920, cancellationSource.Token*/).ConfigureAwait(false);
+            await stream.CopyToAsync(body).ConfigureAwait(false);
 
             // the first line will contain the header; if the status is 'success', then we will copy the rest of the buffer onto the response
             body.Seek(0, SeekOrigin.Begin);
@@ -403,8 +407,12 @@ namespace Opal
 
             var request = ConvertToUtf8(intent.ToString());
 
-            // first write the intent URI
+#if NETSTANDARD2_0
             await stream.WriteAsync(request, 0, request.Length).ConfigureAwait(false);
+#else
+            await stream.WriteAsync(request).ConfigureAwait(false);
+#endif
+
             await upload.Content.CopyToAsync(stream).ConfigureAwait(false);
             await stream.FlushAsync().ConfigureAwait(false);
         }
@@ -412,16 +420,34 @@ namespace Opal
         private static async Task SendRequestAsync(Uri uri, Stream stream)
         {
             var request = ConvertToUtf8($"{uri}\r\n");
+
+#if NETSTANDARD2_0
             await stream.WriteAsync(request, 0, request.Length).ConfigureAwait(false);
+#else
+            await stream.WriteAsync(request).ConfigureAwait(false);
+#endif
             await stream.FlushAsync().ConfigureAwait(false);
         }
 
-        private static SslStream BuildSslStream(Uri uri, Func<Uri, X509Certificate, bool> validation)
+        private async Task<SslStream> BuildSslStream(Uri uri, Func<Uri, X509Certificate, bool> validation)
         {
-            var port = uri.IsDefaultPort ? DefaultPort : uri.Port;
-            var tcpClient = new TcpClient(uri.Host, port);
-            return new SslStream(tcpClient.GetStream(), false,
-                (sender, certificate, chain, errors) => validation(uri, certificate), null,
+            var tcpClient = new TcpClient(AllowIPv6
+                ? AddressFamily.InterNetworkV6
+                : AddressFamily.InterNetwork)
+            {
+                ReceiveTimeout = Timeout,
+                SendTimeout = Timeout
+            };
+
+            var port = uri.IsDefaultPort
+                ? DefaultPort
+                : uri.Port;
+            await tcpClient.ConnectAsync(uri.DnsSafeHost, port).ConfigureAwait(false);
+
+            return new SslStream(tcpClient.GetStream(),
+                false,
+                (sender, certificate, chain, errors) => validation(uri, certificate),
+                null,
                 EncryptionPolicy.RequireEncryption);
         }
 
