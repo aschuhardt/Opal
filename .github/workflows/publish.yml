@@ -30,7 +30,7 @@ jobs:
       with:
         dotnet-version: 7.0.x
     - name: Build
-      run: dotnet build -c Release -p:AssemblyVersion="${{ needs.version.outputs.assemblySemVer }}"
+      run: dotnet build ./Opal/Opal.csproj -c Release -p:AssemblyVersion="${{ needs.version.outputs.assemblySemVer }}"
     - name: Pack
       run: dotnet pack ./Opal/Opal.csproj --no-build -c Release -o .. -p:Version="${{ needs.version.outputs.semVer }}"
     - name: Publish Library
