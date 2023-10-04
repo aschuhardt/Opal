@@ -32,7 +32,7 @@ jobs:
     - name: Build
       run: dotnet build -c Release -p:AssemblyVersion="${{ needs.version.outputs.assemblySemVer }}"
     - name: Pack
-      run: dotnet pack ./Opal/Opal.csproj --no-build -c Release -o .. -p:Version="${{ needs.version.outputs.assemblySemVer }}"
+      run: dotnet pack ./Opal/Opal.csproj --no-build -c Release -o .. -p:Version="${{ needs.version.outputs.semVer }}"
     - name: Publish Library
       run: dotnet nuget push *.nupkg -k ${{ secrets.NUGETAPIKEY }} --skip-duplicate -n
     - name: Publish Symbols
