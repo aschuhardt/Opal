@@ -1,0 +1,21 @@
+name: Test
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+jobs:
+  test:
+    strategy:
+      matrix:
+        framework: [ netstandard2.0, net6.0, net7.0 ]
+    runs-on: ubuntu-latest
+    name: Test
+    steps:
+    - uses: actions/checkout@v3
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v2
+      with:
+        dotnet-version: ${{ matrix.framework == 'net6.0' && '6.0.x' || '7.0.x' }}
+    - name: Run Tests
+      run: dotnet test -f ${{ matrix.framework }}
