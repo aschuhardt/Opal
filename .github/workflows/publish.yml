@@ -1,7 +1,7 @@
 name: Build and Publish
 on:
   workflow_run:
-    workflows: [ Build ]
+    workflows: [ Test ]
     types:
       - completed
     branches: [ main, beta ]
