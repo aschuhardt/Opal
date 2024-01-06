@@ -110,50 +110,19 @@ namespace Opal.Document
 
             var rawUri = new StringBuilder(parts[0]);
 
-            // for protocol-relative URIs, prepend the scheme from the request
-            if (parts[0].StartsWith("//"))
-                rawUri.Insert(0, ':').Insert(0, _uri.Scheme);
-
-            if (!Uri.TryCreate(rawUri.ToString(), UriKind.RelativeOrAbsolute, out var parsed))
-                return new TextLine(line.Trim());
-
-            if (!parsed.IsAbsoluteUri)
+            // first try to parse relative to the current URI
+            if (!Uri.TryCreate(_uri, rawUri.ToString(), out var parsed))
             {
-                var pathParts = parts[0].Split(new[] { '?' }, StringSplitOptions.RemoveEmptyEntries);
+                // for protocol-relative URIs, prepend the scheme from the request
+                if (parts[0].StartsWith("//"))
+                    rawUri.Insert(0, ':').Insert(0, _uri.Scheme);
 
-                var linePath = pathParts[0];
-                parsed = new UriBuilder
-                {
-                    Host = _uri.Host, Scheme = _uri.Scheme, Port = _uri.IsDefaultPort ? -1 : _uri.Port,
-                    Path = BuildRelativePath(linePath, _uri),
-                    Query = pathParts.Length > 1 ? pathParts[1] : string.Empty
-                }.Uri;
+                // try to parse as an absolute URI
+                if (!Uri.TryCreate(rawUri.ToString(), UriKind.Absolute, out parsed))
+                    return new TextLine(line.Trim());
             }
 
             return new LinkLine(parts.Length > 1 ? parts[1] : null, parsed);
-        }
-
-        private static string BuildRelativePath(string pagePath, Uri baseUri)
-        {
-            if (pagePath.StartsWith("/"))
-                return pagePath; // absolute uri
-
-            var path = new StringBuilder();
-
-            for (var i = 0; i < baseUri.Segments.Length; i++)
-            {
-                var segment = baseUri.Segments[i];
-
-                // if this is the last segment and it looks like a file, skip it
-                if (i == baseUri.Segments.Length - 1 && segment.Contains("."))
-                    break;
-
-                path.Append(segment);
-            }
-
-            path.Append(pagePath);
-
-            return path.ToString();
         }
     }
 }
