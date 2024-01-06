@@ -1,5 +1,6 @@
 name: Build and Publish
 on:
+  workflow_dispatch:
   workflow_run:
     workflows: [ Test ]
     types:
