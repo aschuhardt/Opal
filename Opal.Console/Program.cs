@@ -5,17 +5,12 @@ using Opal;
 using Opal.Authentication.Certificate;
 using Opal.Response;
 
-string? _certPath = null;
-
-string GetInput()
-{
-    return (Console.ReadLine() ?? string.Empty).Trim();
-}
+string _certPath = null;
 
 Task<IClientCertificate> GetClientCertificate()
 {
     if (string.IsNullOrEmpty(_certPath))
-        return Task.FromResult<IClientCertificate?>(null);
+        return Task.FromResult<IClientCertificate>(null);
 
     var pkcs12 = X509Certificate2.CreateFromPemFile(_certPath).Export(X509ContentType.Pkcs12);
     var cert = new X509Certificate2(pkcs12);
@@ -24,9 +19,10 @@ Task<IClientCertificate> GetClientCertificate()
 
 Task.Run(async () =>
 {
-    var client = new OpalClient();
-
-    client.GetActiveClientCertificateCallback = GetClientCertificate;
+    var client = new OpalClient
+    {
+        GetActiveClientCertificateCallback = GetClientCertificate
+    };
 
     while (true)
     {
@@ -55,7 +51,9 @@ Task.Run(async () =>
             response = await client.UploadAsync(command, contents.Length, null, "text/plain; charset=utf-8", payload);
         }
         else
+        {
             response = await client.SendRequestAsync(command);
+        }
 
         if (response.IsSuccess && response is SuccessfulResponse successfulResponse)
         {
@@ -68,6 +66,7 @@ Task.Run(async () =>
             {
                 // save the file to a temporary location and open it in an OS-dependent fashion
                 var tempPath = Path.GetTempFileName();
+
                 await using (var file = File.OpenWrite(tempPath))
                 {
                     successfulResponse.Body.CopyTo(file);
@@ -77,8 +76,16 @@ Task.Run(async () =>
             }
         }
         else
+        {
             Console.WriteLine(response.ToString());
+        }
     }
 }).Wait();
 
 Console.WriteLine("Goodbye!");
+return;
+
+string GetInput()
+{
+    return (Console.ReadLine() ?? string.Empty).Trim();
+}
