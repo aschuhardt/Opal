@@ -1,0 +1,44 @@
+name: Build and Publish
+on:
+  workflow_run:
+    workflows: [ Build ]
+    types:
+      - completed
+    branches: [ main, beta ]
+jobs:
+  version:
+    name: Calculate Version
+    runs-on: ubuntu-latest
+    outputs:
+      semVer: ${{ steps.gitversion.outputs.semVer }}
+      assemblySemVer: ${{ steps.gitversion.outputs.assemblySemVer }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@v0
+        with:
+          versionSpec: '5.x'
+      - name: Determine Version
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v0
+  build:
+    name: Build and Publish
+    runs-on: ubuntu-latest
+    needs: [ version ]
+    steps:
+    - uses: actions/checkout@v3
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v2
+      with:
+        dotnet-version: 7.0.x
+    - name: Build
+      run: dotnet build ./Opal/Opal.csproj -c Release -p:AssemblyVersion="${{ needs.version.outputs.assemblySemVer }}"
+    - name: Pack
+      run: dotnet pack ./Opal/Opal.csproj --no-build -c Release -o . -p:Version="${{ needs.version.outputs.semVer }}"
+    - name: Publish Library
+      run: dotnet nuget push *.nupkg -k ${{ secrets.NUGETAPIKEY }} --skip-duplicate -n -s https://api.nuget.org/v3/index.json
+    - name: Publish Symbols
+      run: dotnet nuget push *.snupkg -k ${{ secrets.NUGETAPIKEY }} --skip-duplicate -n -s https://api.nuget.org/v3/index.json

@@ -1,18 +1,17 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-      <ImplicitUsings>disable</ImplicitUsings>
-      <Authors>Addison Schuhardt</Authors>
-      <Description>A client library for the Gemini and Titan protocols</Description>
-      <PackageProjectUrl>https://github.com/aschuhardt/Opal</PackageProjectUrl>
-      <RepositoryUrl>https://github.com/aschuhardt/Opal</RepositoryUrl>
-      <PackageTags>gemini;gemini-protocol;titan;titan-protocol;client</PackageTags>
-      <PackageLicenseExpression>MIT</PackageLicenseExpression>
-      <PackageVersion>1.7.2</PackageVersion>
-      <TargetFrameworks>net7.0;net6.0;netstandard2.0</TargetFrameworks>
-	  <IncludeSymbols>true</IncludeSymbols>
-	  <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-	  <PackageReadmeFile>README.md</PackageReadmeFile>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Authors>Addison Schuhardt</Authors>
+    <Description>A client library for the Gemini and Titan protocols</Description>
+    <PackageProjectUrl>https://github.com/aschuhardt/Opal</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/aschuhardt/Opal</RepositoryUrl>
+    <PackageTags>gemini;gemini-protocol;titan;titan-protocol;TLS</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <TargetFrameworks>net6.0;net7.0;net8.0;netstandard2.0</TargetFrameworks>
+    <IncludeSymbols>true</IncludeSymbols>
+  	<SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  	<PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>

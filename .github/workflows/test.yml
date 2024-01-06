@@ -1,5 +1,4 @@
-name: .NET
-
+name: Test
 on:
   push:
     branches: [ main, beta ]
@@ -8,21 +7,18 @@ on:
       - '**/*.gitignore'
       - '**/*.gitattributes'
   workflow_dispatch:
-
 jobs:
-  build:
-
+  test:
+    strategy:
+      matrix:
+        framework: [ netstandard2.0, net7.0, net8.0 ]
     runs-on: ubuntu-latest
-
+    name: Test
     steps:
     - uses: actions/checkout@v3
     - name: Setup .NET
       uses: actions/setup-dotnet@v2
       with:
-        dotnet-version: 7.0.x
-    - name: Restore dependencies
-      run: dotnet restore
-    - name: Build
-      run: dotnet build --no-restore
-    - name: Test
-      run: dotnet test --no-build --verbosity normal
+        dotnet-version: 8.0.x
+    - name: Run Tests
+      run: dotnet test -f ${{ matrix.framework }
