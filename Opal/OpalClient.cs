@@ -317,7 +317,7 @@ namespace Opal
 #endif
         }
 
-        private static IGeminiResponse BuildResponse(Uri uri, GeminiHeader header, Stream contents)
+        private static IGeminiResponse BuildResponse(Uri uri, GeminiHeader header, MemoryStream contents)
         {
             // make sure the status code is recognizable
             if (!Enum.IsDefined(typeof(StatusCode), header.StatusCode))
@@ -417,7 +417,8 @@ namespace Opal
             await stream.FlushAsync().ConfigureAwait(false);
         }
 
-        private static async Task SendRequestAsync(Uri uri, Stream stream)
+        // ReSharper disable once SuggestBaseTypeForParameter
+        private static async Task SendRequestAsync(Uri uri, SslStream stream)
         {
             var request = ConvertToUtf8($"{uri}\r\n");
 

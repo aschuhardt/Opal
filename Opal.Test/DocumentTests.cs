@@ -163,4 +163,19 @@ internal class DocumentTests
         Assert.AreEqual(expectedHost, uri.Host);
         Assert.AreEqual(expectedPath, uri.PathAndQuery);
     }
+
+    [TestCase("=> thing", "gemini://localhost/some/thing", "/some/thing")]
+    [TestCase("=> thing/other", "gemini://localhost/some/thing", "/some/thing/other")]
+    [TestCase("=> me", "gemini://localhost/some/thing", "/some/me")]
+    public void DocumentParser_ParsesNonSlashRelativeUrlsCorrectly(string line, string baseUrl, string expectedPath)
+    {
+        var withLineEnding = new StringBuilder(line).AppendLine();
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(withLineEnding.ToString()));
+        if (new GemtextDocumentParser(new Uri(baseUrl)).ParseDocument(stream).Single() is not LinkLine linkLine) 
+            throw new ArgumentException();
+
+        var uri = linkLine.Uri;
+        Assert.IsFalse(!uri.IsAbsoluteUri);
+        Assert.AreEqual(uri.PathAndQuery, expectedPath);
+    }
 }
