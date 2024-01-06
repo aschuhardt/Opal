@@ -9,7 +9,7 @@
       <PackageTags>gemini;gemini-protocol;titan;titan-protocol;client</PackageTags>
       <PackageLicenseExpression>MIT</PackageLicenseExpression>
       <PackageVersion>1.7.2</PackageVersion>
-      <TargetFrameworks>net7.0;net6.0;netstandard2.0</TargetFrameworks>
+      <TargetFrameworks>net8.0;net7.0;net6.0;netstandard2.0</TargetFrameworks>
 	  <IncludeSymbols>true</IncludeSymbols>
 	  <SymbolPackageFormat>snupkg</SymbolPackageFormat>
 	  <PackageReadmeFile>README.md</PackageReadmeFile>

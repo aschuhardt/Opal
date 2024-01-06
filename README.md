@@ -1,7 +1,7 @@
 ![Opal on Nuget](https://img.shields.io/nuget/v/Opal) ![Opal build](https://img.shields.io/github/actions/workflow/status/aschuhardt/Opal/dotnet.yml?branch=main) ![Last commit](https://img.shields.io/github/last-commit/aschuhardt/Opal) ![MIT](https://img.shields.io/github/license/aschuhardt/Opal)
 
 # Opal
-A client library for the Gemini and Titan protocols targeting .NET Standard 2.0, .NET 6, and .NET 7
+A client library for the Gemini and Titan protocols targeting .NET Standard 2.0, .NET 6+
 
 ## Features
 - Asynchronous requests
